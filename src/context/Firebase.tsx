@@ -7,6 +7,7 @@ import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   sendEmailVerification,
+  updateProfile,
 } from "firebase/auth";
 import {
   doc,
@@ -39,10 +40,9 @@ const firebaseConfig = {
 
 type trailsUser = {
   uid: string;
-  createdAt: Timestamp;
   name: string;
   email: string;
-  profileImage: string;
+  profileImage: string | null;
   emailVerified: boolean;
 };
 
@@ -57,13 +57,13 @@ interface FirebaseContextType {
     name: string,
     email: string,
     password: string,
-    profileImageBase64: string
+    profileImageBase64: string | null
   ) => Promise<void>;
   updateUserDetails: (value: updateUserFields) => Promise<void>;
   uploadBase64Image: (base64Image: string, path: string) => Promise<string>;
 }
 
-let userGradient = "";
+let userGradient = "#f3f4f6";
 const firebaseApp = initializeApp(firebaseConfig);
 const firebaseAuth = getAuth(firebaseApp);
 const firebaseFirestore = getFirestore(firebaseApp);
@@ -75,79 +75,6 @@ const FirebaseContext = createContext<FirebaseContextType | null>(null);
 const firebaseGoogleProvider = new GoogleAuthProvider();
 
 export const userFirebase = () => useContext(FirebaseContext);
-
-const signupwithGoogle = async () => {
-  try {
-    const result = await signInWithPopup(firebaseAuth, firebaseGoogleProvider);
-    const user = result.user;
-
-    if (!user) throw new Error("User not found");
-
-    // Reference to Firestore user document
-    const userDocRef = doc(firebaseFirestore, "users", user.uid);
-    const userSnapshot = await getDoc(userDocRef);
-    console.log("User Doc", userDocRef, userSnapshot, userSnapshot.exists());
-
-    if (!userSnapshot.exists()) {
-      // Convert profile image URL to Base64
-      // const profileImageBase64 = await convertImageToBase64(
-      //   user.photoURL || ""
-      // );
-
-      // Store user data in Firestore
-      await setDoc(userDocRef, {
-        name: user.displayName || "",
-        email: user.email || "",
-        profileImage: user.photoURL || "",
-        createdAt: new Date(),
-      });
-
-      console.log("User signed up and data stored in Firestore");
-    } else {
-      console.log("User already exists in Firestore, skipping storage.");
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("Google sign-in error:", error.message);
-    } else {
-      console.error("Unknown error occurred", error);
-    }
-  }
-};
-
-export const signUpWithEmailAndPassword = async (
-  name: string,
-  email: string,
-  password: string,
-  profileImageBase64: string
-) => {
-  try {
-    // Create user in Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(
-      firebaseAuth,
-      email,
-      password
-    );
-    const user = userCredential.user;
-
-    // Send email verification
-    await sendEmailVerification(user);
-
-    // Store user data in Firestore
-    await setDoc(doc(firebaseFirestore, "users", user.uid), {
-      name,
-      email,
-      profileImage: profileImageBase64,
-      createdAt: new Date(),
-    });
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("Email/Password sign-in error:", error.message);
-    } else {
-      console.error("Unknown error occurred", error);
-    }
-  }
-};
 
 export const uploadBase64Image = async (
   base64Image: string,
@@ -178,83 +105,118 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
   const [user, setUser] = useState<trailsUser | null>(null);
   const [isAuthLoaded, setIsAuthLoaded] = useState(false);
 
-  const updateUserDetails = async (value: updateUserFields) => {
-    console.log("Value is", value);
-    if (!user) {
-      console.error("No authenticated user found.");
-      return;
-    }
-
-    const userRef = doc(firebaseFirestore, "users", user.uid);
-
+  const signupwithGoogle = async () => {
     try {
-      await updateDoc(userRef, value);
-
-      console.log("User details updated successfully.");
-
-      const updatedUserSnap = await getDoc(userRef);
-      if (updatedUserSnap.exists()) {
-        const updatedUserData = updatedUserSnap.data();
-
-        console.log("Updated user data", updatedUserData);
-
-        setUser((prevUser) => {
-          if (prevUser) {
-            const updatedUserDetails: trailsUser = {
-              uid: prevUser.uid,
-              createdAt: prevUser.createdAt,
-              name: updatedUserData.name!,
-              email: prevUser.email,
-              profileImage: updatedUserData.profileImage,
-              emailVerified: prevUser.emailVerified,
-            };
-
-            return {
-              ...updatedUserDetails,
-            };
-          } else {
-            return prevUser;
-          }
-        });
-      }
+      await signInWithPopup(firebaseAuth, firebaseGoogleProvider);
     } catch (error) {
-      console.error("Error updating user details:", error);
-      throw new Error(error as string);
+      if (error instanceof Error) {
+        console.error("Google sign-in error:", error.message);
+      } else {
+        console.error("Unknown error occurred", error);
+      }
+    }
+  };
+
+  const signUpWithEmailAndPassword = async (
+    name: string,
+    email: string,
+    password: string,
+    profileImageBase64: string | null
+  ) => {
+    try {
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        firebaseAuth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+
+      // Send email verification
+      await sendEmailVerification(user);
+
+      let profileImageURL = null;
+
+      if (profileImageBase64) {
+        profileImageURL = (await uploadBase64Image(
+          profileImageBase64,
+          `${name}_${user.uid}`
+        )) as string;
+      }
+
+      await updateProfile(user, {
+        displayName: name,
+        photoURL: profileImageURL,
+      });
+
+      const updatedUser: trailsUser = {
+        uid: user.uid,
+        name,
+        email,
+        profileImage: profileImageURL,
+        emailVerified: user.emailVerified,
+      };
+      setUser(updatedUser);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Email/Password sign-in error:", error.message);
+        throw new Error(error.message);
+      } else {
+        console.error("Unknown error occurred", error);
+        throw new Error("Something went wrong. Please try again later.");
+      }
+    }
+  };
+
+  const updateUserDetails = async (value: updateUserFields) => {
+    try {
+      console.log("Incoming profile changes", value);
+      const user = firebaseAuth.currentUser;
+
+      if (!user) {
+        throw new Error("No authenticated user found.");
+      }
+
+      await updateProfile(user, value);
+
+      console.log("User profile updated successfully.", user);
+
+      const updatedUser: trailsUser = {
+        uid: user.uid,
+        name: user.displayName || "",
+        email: user.email!,
+        profileImage: user.photoURL,
+        emailVerified: user.emailVerified,
+      };
+      setUser(updatedUser);
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      throw new Error("Failed to update user profile.");
     }
   };
 
   useEffect(() => {
     const authState = onAuthStateChanged(firebaseAuth, async (user) => {
+      console.log("Auth State changed", user);
+      setIsAuthLoaded(false);
       if (user) {
         try {
-          setIsAuthLoaded(false);
-          const userDocRef = doc(firebaseFirestore, "users", user.uid);
-          const userSnapshot = await getDoc(userDocRef);
-
-          if (userSnapshot.exists()) {
-            const userData = userSnapshot.data();
-            const userFromFirestore: trailsUser = {
-              uid: user.uid,
-              createdAt: userData.createdAt,
-              name: userData.name,
-              email: userData.email,
-              profileImage: userData.profileImage,
-              emailVerified: user.emailVerified,
-            };
-            setUser(userFromFirestore);
-            userGradient = getGradientColor(user.uid);
-            setIsAuthLoaded(true);
-          } else {
-            console.log("User not found in Firestore.");
-            setIsAuthLoaded(true);
-          }
+          const userFromFirestore: trailsUser = {
+            uid: user.uid,
+            name: user.displayName || "",
+            email: user.email!,
+            profileImage: user.photoURL,
+            emailVerified: user.emailVerified,
+          };
+          setUser(userFromFirestore);
+          userGradient = getGradientColor(user.uid);
         } catch (error) {
           console.error("Error fetching user data:", error);
-          setIsAuthLoaded(true);
         }
       } else {
         setUser(null);
       }
+      setIsAuthLoaded(true);
     });
 
     return () => authState();

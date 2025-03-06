@@ -1,17 +1,10 @@
-import React, { useState, useCallback, useRef } from "react";
-import { X, Mail, Lock, User, Loader2, AlertCircle, Check } from "lucide-react";
-import ReactCrop, {
-  centerCrop,
-  convertToPixelCrop,
-  makeAspectCrop,
-  type Crop,
-} from "react-image-crop";
+import React, { useState, useRef, act } from "react";
+import { X, Mail, Lock, User, Loader2, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { useScrollLock } from "../utils/ScrollLockManager";
 import { useFocusTrap } from "../utils/FocusTrap";
 import { userFirebase } from "../context/Firebase";
 import ImageCropper from "./ImageCropper";
-import setCanvasPreview from "./setCanvasPreview";
 
 type Tab = "signin" | "signup";
 
@@ -20,27 +13,14 @@ interface AuthModalProps {
   onClose: () => void;
 }
 
-const MIN_DIMENSION = 150;
-const ASPECT_RATIO = 1;
-
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const profileImageRef = useRef<string | null>(null);
-  const imgRef = useRef<HTMLImageElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const firebase = userFirebase();
   const modalRef = useFocusTrap(isOpen);
   useScrollLock(isOpen);
 
   const [activeTab, setActiveTab] = useState<Tab>("signin");
   const [isLoading, setIsLoading] = useState(false);
-  const [image, setImage] = useState<string | null>(null);
-  const [crop, setCrop] = useState<Crop>({
-    unit: "%",
-    x: 25,
-    y: 25,
-    width: 50,
-    height: 50,
-  });
 
   // Form states
   const [formData, setFormData] = useState({
@@ -96,49 +76,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const imageBytesData = reader.result as string;
-        const imageElement = new Image();
-        imageElement.src = imageBytesData;
-
-        imageElement.addEventListener("load", (e: Event) => {
-          const img = e.currentTarget as HTMLImageElement;
-          const { naturalWidth, naturalHeight } = img;
-
-          if (naturalWidth < MIN_DIMENSION || naturalHeight < MIN_DIMENSION) {
-            toast.error("Image must be at least 150 x 150 pixels", {
-              position: "bottom-right",
-            });
-            return setImage(null);
-          }
-        });
-
-        setImage(reader.result as string);
-      };
-      reader.readAsDataURL(e.target.files[0]);
-    }
-  };
-
-  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { width, height } = e.currentTarget;
-    const cropwidthInPercent = (MIN_DIMENSION / width) * 100;
-
-    const crop = makeAspectCrop(
-      {
-        unit: "%",
-        width: cropwidthInPercent,
-      },
-      ASPECT_RATIO,
-      width,
-      height
-    );
-    const centeredCrop = centerCrop(crop, width, height);
-    setCrop(centeredCrop);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -161,19 +98,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     }
 
     try {
-      // Simulate API call
       await firebase?.signUpWithEmailAndPassword(
         formData.fullName,
         formData.email,
         formData.password,
-        ""
+        profileImageRef.current
       );
       toast.success(
         `Successfully ${activeTab === "signin" ? "signed in" : "signed up"}!`
       );
       onClose();
     } catch (error) {
-      toast.error("Authentication failed. Please try again.");
+      toast.error(
+        `${
+          activeTab === "signin" ? "Sign in" : "Sign up"
+        } failed. Please try again later.}`
+      );
     } finally {
       setIsLoading(false);
     }
@@ -242,64 +182,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   <label className="block text-sm font-medium text-center text-gray-700">
                     Profile Picture
                   </label>
-                  <div className="relative">
-                    {!image ? (
-                      <ImageCropper
-                        handleImageUpload={handleImageUpload}
-                        profileImageRef={profileImageRef}
-                      />
-                    ) : (
-                      <div className="relative">
-                        <div
-                          onClick={() => {
-                            if (!imgRef.current || !canvasRef.current) {
-                              return;
-                            }
-                            setCanvasPreview(
-                              imgRef.current,
-                              canvasRef.current,
-                              convertToPixelCrop(
-                                crop,
-                                imgRef.current.width,
-                                imgRef.current.height
-                              )
-                            );
-                            const croppedImageBytesData =
-                              canvasRef.current.toDataURL();
-                            console.log(
-                              "Cropped image is",
-                              croppedImageBytesData,
-                              typeof croppedImageBytesData
-                            );
-                            profileImageRef.current = croppedImageBytesData;
-                            setImage(null);
-                          }}
-                          title="Crop Image"
-                          className="absolute right-0 top-[-30px] z-10 bg-gray-200 cursor-pointer group "
-                        >
-                          <Check className="group-hover:text-secondary" />
-                        </div>
-                        <ReactCrop
-                          onChange={(pixelCrop, percentCrop) =>
-                            setCrop(percentCrop)
-                          }
-                          crop={crop}
-                          circularCrop
-                          keepSelection
-                          aspect={ASPECT_RATIO}
-                          minWidth={MIN_DIMENSION}
-                        >
-                          <img
-                            ref={imgRef}
-                            onLoad={onImageLoad}
-                            src={image}
-                            alt="uploaded image"
-                          />
-                        </ReactCrop>
-                      </div>
-                    )}
-                    <canvas ref={canvasRef} className="hidden " />
-                  </div>
+                  <ImageCropper profileImageRef={profileImageRef} />
                 </div>
 
                 {/* Full Name */}

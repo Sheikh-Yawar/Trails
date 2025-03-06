@@ -1,7 +1,7 @@
 import { Camera, Check, Trash2 } from "lucide-react";
 import { userFirebase } from "../context/Firebase";
 import toast from "react-hot-toast";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactCrop, {
   centerCrop,
   convertToPixelCrop,
@@ -11,8 +11,7 @@ import ReactCrop, {
 import setCanvasPreview from "./setCanvasPreview";
 
 type ImageCropperProps = {
-  profileImage: string | null;
-  setProfileImage: React.Dispatch<React.SetStateAction<string | null>>;
+  profileImageRef: React.MutableRefObject<string | null>;
   canChooseNewFile?: boolean;
   isPPRemoved?: boolean;
 };
@@ -21,8 +20,7 @@ const MIN_DIMENSION = 150;
 const ASPECT_RATIO = 1;
 
 const ImageCropper = ({
-  profileImage,
-  setProfileImage,
+  profileImageRef,
   canChooseNewFile = true,
 }: ImageCropperProps) => {
   const firebase = userFirebase();
@@ -37,6 +35,14 @@ const ImageCropper = ({
     width: 50,
     height: 50,
   });
+
+  useEffect(() => {
+    if (profileImageRef.current) {
+      setIsPPRemoved(false);
+    } else {
+      setIsPPRemoved(true);
+    }
+  }, [profileImageRef.current]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -83,7 +89,7 @@ const ImageCropper = ({
 
   const handleRemoveProfilePictureClick = () => {
     setIsPPRemoved(true);
-    profileImage = null;
+    profileImageRef.current = null;
   };
 
   return (
@@ -91,7 +97,7 @@ const ImageCropper = ({
       {!image ? (
         <div
           style={{
-            background: !profileImage ? firebase?.userGradient : "#f3f4f6",
+            background: firebase?.userGradient,
           }}
           className="relative flex items-center justify-center w-32 h-32 mx-auto overflow-hidden rounded-full cursor-pointer group"
         >
@@ -104,10 +110,10 @@ const ImageCropper = ({
             />
           )}
 
-          {profileImage && (
+          {profileImageRef.current && (
             <>
               <img
-                src={profileImage}
+                src={profileImageRef.current}
                 alt="Avatar"
                 className="absolute object-cover w-full h-full rounded-full"
               />
@@ -137,8 +143,9 @@ const ImageCropper = ({
                 )
               );
               const croppedImageBytesData = canvasRef.current.toDataURL();
-              setProfileImage(croppedImageBytesData);
+              profileImageRef.current = croppedImageBytesData;
               setImage(null);
+              setIsPPRemoved(false);
             }}
             title="Crop Image"
             className="absolute right-0 top-[-40px] z-10 bg-gray-200 cursor-pointer group mt-4 "
@@ -164,7 +171,7 @@ const ImageCropper = ({
           <canvas ref={canvasRef} className="hidden " />
         </div>
       )}
-      {!isPPRemoved && (
+      {canChooseNewFile && !isPPRemoved && (
         <div className="flex flex-col items-center mt-5 ">
           <div title="Remove Photo" onClick={handleRemoveProfilePictureClick}>
             <Trash2 className="w-5 h-5 cursor-pointer hover:text-red-500" />

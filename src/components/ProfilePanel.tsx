@@ -1,6 +1,6 @@
 import { signOut } from "firebase/auth";
 import { Edit2, Loader2, LogOut, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { userFirebase } from "../context/Firebase";
 import ImageCropper from "./ImageCropper";
@@ -24,14 +24,14 @@ const ProfilePanel = ({
   const [username, setUsername] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isSavingChanges, setIsSavingChanges] = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const profileImageRef = useRef<string | null>(null);
   const [originalUsername, setOriginalUsername] = useState("");
   const [originalProfileImage, setOriginalProfileImage] = useState<
     string | null
   >(null);
 
   useEffect(() => {
-    setProfileImage(firebase?.user?.profileImage!);
+    profileImageRef.current = firebase?.user?.profileImage!;
     setUsername(firebase?.user?.name!);
     setOriginalUsername(firebase?.user?.name!);
     setOriginalProfileImage(firebase?.user?.profileImage!);
@@ -43,17 +43,17 @@ const ProfilePanel = ({
       const updates: updateUserFields = {};
 
       if (username !== originalUsername) {
-        updates.name = username;
+        updates.displayName = username;
       }
 
-      if (profileImage !== originalProfileImage) {
-        if (profileImage) {
-          updates.profileImage = (await firebase?.uploadBase64Image(
-            profileImage,
+      if (profileImageRef.current !== originalProfileImage) {
+        if (profileImageRef.current) {
+          updates.photoURL = (await firebase?.uploadBase64Image(
+            profileImageRef.current,
             `${username}_${firebase.user?.uid}`
           )) as string;
         } else {
-          updates.profileImage = null;
+          updates.photoURL = "";
         }
       }
 
@@ -75,7 +75,7 @@ const ProfilePanel = ({
 
   const handleCancelChanges = () => {
     setIsEditing(false);
-    setProfileImage(originalProfileImage);
+    profileImageRef.current = originalProfileImage;
     setUsername(originalUsername);
   };
 
@@ -124,14 +124,12 @@ const ProfilePanel = ({
               <div className="flex flex-col items-center mt-4 space-y-4">
                 {firebase?.user && firebase.user.profileImage ? (
                   <ImageCropper
-                    profileImage={profileImage}
-                    setProfileImage={setProfileImage}
+                    profileImageRef={profileImageRef}
                     canChooseNewFile={isEditing}
                   />
                 ) : (
                   <ImageCropper
-                    profileImage={profileImage}
-                    setProfileImage={setProfileImage}
+                    profileImageRef={profileImageRef}
                     canChooseNewFile={isEditing}
                   />
                 )}
@@ -197,6 +195,9 @@ const ProfilePanel = ({
                   onClick={() => {
                     signOut(firebase?.firebaseAuth!);
                     setIsProfileOpen(false);
+                    if (firebase) {
+                      firebase.userGradient = "#f3f4f6";
+                    }
                     navigate("/");
                   }}
                   className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-red-600 transition-colors rounded-lg hover:bg-red-50"

@@ -1,4 +1,4 @@
 export type updateUserFields = {
-  name?: string;
-  profileImage?: string | null;
+  displayName?: string;
+  photoURL?: string | null;
 };
