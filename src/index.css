@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+.animate-bounce-hover:hover {
+  animation: bounce 0.6s ease-in-out;
+}
+
+.animate-pulse-hover:hover {
+  animation: pulse 1.5s infinite;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+.animate-fade-in-delay {
+  animation: fadeIn 0.8s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-delay-2 {
+  animation: fadeIn 0.8s ease-out 0.4s forwards;
+  opacity: 0;
+}
+
+/* Scroll Lock Styles */
+.scroll-locked {
+  overflow: hidden !important;
+}
+
+/* Header Button Styles */
+.header-button {
+  @apply inline-flex items-center justify-center px-4 py-2 transition-all duration-200 rounded-full;
+}
+
+.header-button.sign-in-button {
+  @apply text-white bg-secondary hover:bg-secondary/90;
+}
+
+/* Modal and Panel Styles */
+.modal-content,
+.panel-content {
+  @apply overflow-y-auto;
+  max-height: calc(100vh - 2rem);
+}
+
+/* Focus Styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2;
+}
+
+/* Scrollbar Styles */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: theme("colors.gray.200") theme("colors.gray.100");
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: theme("colors.gray.100");
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: theme("colors.gray.200");
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: theme("colors.gray.300");
+}
+
+/* Tooltip Styles */
+.tooltip {
+  @apply absolute invisible;
+}
+
+.has-tooltip:hover .tooltip {
+  @apply z-50 visible;
+}
+
+.css-13cymwt-control,
+.css-t3ipsp-control {
+  border-radius: 0.5rem;
+  padding-block: 3px;
+  font-size: 18px;
+  line-height: 28px;
+  cursor: pointer;
+}
+
+.css-1jqq78o-placeholder {
+  padding-left: 33px;
+}
