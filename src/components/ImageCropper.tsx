@@ -1,6 +1,5 @@
 import { Camera, Check, Trash2 } from "lucide-react";
 import { userFirebase } from "../context/Firebase";
-import toast from "react-hot-toast";
 import { useEffect, useRef, useState } from "react";
 import ReactCrop, {
   centerCrop,
@@ -9,6 +8,7 @@ import ReactCrop, {
   makeAspectCrop,
 } from "react-image-crop";
 import setCanvasPreview from "./setCanvasPreview";
+import { toast } from "react-toastify";
 
 type ImageCropperProps = {
   profileImageRef: React.MutableRefObject<string | null>;
@@ -57,9 +57,7 @@ const ImageCropper = ({
           const { naturalWidth, naturalHeight } = img;
 
           if (naturalWidth < MIN_DIMENSION || naturalHeight < MIN_DIMENSION) {
-            toast.error("Image must be at least 150 x 150 pixels", {
-              position: "bottom-right",
-            });
+            toast.error("Image must be at least 150 x 150 pixels");
             return setImage(null);
           }
         });

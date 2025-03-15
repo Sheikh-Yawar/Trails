@@ -3,13 +3,20 @@ export function getGradientColor(input: string): string {
     return char.charCodeAt(0) + ((acc << 5) - acc);
   }, 0);
 
-  // Generate hues that stay within an aesthetically pleasing range
+  // Use golden ratio to get aesthetically pleasing hues
   const hue1 = Math.abs(hash % 360);
-  const hue2 = Math.abs((hash * 1.3 + 90) % 360); // Offset for better contrast
+  const hue2 = Math.abs((hash * 1.6 + 120) % 360); // More spaced-out contrast
 
-  // Randomized angle for more variety
-  const angle = Math.abs((hash * 1.5) % 360);
+  // More vibrant Gen Z-style saturation & lightness
+  const saturation1 = 85 + (hash % 10); // Between 85-95%
+  const saturation2 = 75 + ((hash * 1.2) % 15); // Between 75-90%
+  const lightness1 = 55 + (hash % 10); // Between 55-65%
+  const lightness2 = 65 + ((hash * 1.3) % 10); // Between 65-75%
 
-  // Refined saturation & lightness to resemble Microsoft’s soft, vibrant gradients
-  return `linear-gradient(${angle}deg, hsl(${hue1}, 80%, 60%), hsl(${hue2}, 85%, 70%))`;
+  // Dynamic angles for fresh aesthetics
+  const angle = Math.abs((hash * 2.3) % 360);
+
+  return `linear-gradient(${angle}deg, 
+          hsl(${hue1}, ${saturation1}%, ${lightness1}%), 
+          hsl(${hue2}, ${saturation2}%, ${lightness2}%))`;
 }

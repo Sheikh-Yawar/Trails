@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Map, Mountain, Calendar, ArrowUpRight } from "lucide-react";
-import { Toaster } from "react-hot-toast";
 import AuthModal from "../components/AuthModal";
 import CustomButton from "../components/CustomButton";
 
@@ -184,9 +183,6 @@ function LandingScreen() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
       />
-
-      {/* Toast Container */}
-      <Toaster position="top-right" />
     </div>
   );
 }

@@ -8,11 +8,24 @@ import Header from "./components/Header.tsx";
 import CreateTrip from "./pages/CreateTrip.tsx";
 import { FirebaseProvider } from "./context/Firebase.tsx";
 import TripItinerary from "./pages/TripItinerary.tsx";
-import { Toaster } from "react-hot-toast";
+import { Slide, ToastContainer } from "react-toastify";
 
 const Layout = () => (
   <>
     <Header />
+    <ToastContainer
+      position="top-right"
+      autoClose={5000}
+      hideProgressBar={false}
+      newestOnTop
+      closeOnClick={false}
+      rtl={false}
+      pauseOnFocusLoss
+      draggable
+      pauseOnHover
+      theme="light"
+      transition={Slide}
+    />
     <Outlet />
   </>
 );
@@ -32,7 +45,6 @@ const router = createBrowserRouter([
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <FirebaseProvider>
-      <Toaster />
       <RouterProvider router={router} />
     </FirebaseProvider>
   </StrictMode>

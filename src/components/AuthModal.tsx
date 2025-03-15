@@ -1,10 +1,11 @@
-import React, { useState, useRef, act } from "react";
+import React, { useState, useRef } from "react";
 import { X, Mail, Lock, User, Loader2, AlertCircle } from "lucide-react";
-import toast from "react-hot-toast";
 import { useScrollLock } from "../utils/ScrollLockManager";
 import { useFocusTrap } from "../utils/FocusTrap";
 import { userFirebase } from "../context/Firebase";
 import ImageCropper from "./ImageCropper";
+import { toast } from "react-toastify";
+import { FirebaseError } from "firebase/app";
 
 type Tab = "signin" | "signup";
 
@@ -38,6 +39,24 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     validateField(name, value);
+  };
+
+  const checkDisposableEmail = async (email: string): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://disposable.debounce.io/?email=${email}`
+      );
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+
+      const data = await response.json();
+      console.log("Debounce resonse", data.disposable);
+      return data.disposable;
+    } catch (error) {
+      toast.error("Something went wrong. Please try again later");
+      return "Check Failed";
+    }
   };
 
   const validateField = (
@@ -86,7 +105,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       password: "",
     };
 
-    Object.keys(formData).forEach((key) => {
+    Object.keys(formData).forEach(async (key) => {
       validateField(key, formData[key as keyof typeof formData], tempErrors);
     });
 
@@ -97,23 +116,51 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    try {
-      await firebase?.signUpWithEmailAndPassword(
-        formData.fullName,
-        formData.email,
-        formData.password,
-        profileImageRef.current
+    const isDisposableEmail = await checkDisposableEmail(formData.email);
+
+    if (isDisposableEmail === "true") {
+      setIsLoading(false);
+      toast.error(
+        "Temporary email addresses are not allowed. Please use a valid email to continue."
       );
+      return;
+    } else if (isDisposableEmail === "Check Failed") {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      if (activeTab == "signin") {
+        await firebase?.signinWithEmailAndPassword(
+          formData.email,
+          formData.password
+        );
+      } else {
+        await firebase?.signUpWithEmailAndPassword(
+          formData.fullName,
+          formData.email,
+          formData.password,
+          profileImageRef.current
+        );
+      }
       toast.success(
         `Successfully ${activeTab === "signin" ? "signed in" : "signed up"}!`
       );
+      setFormData({
+        fullName: "",
+        email: "",
+        password: "",
+      });
       onClose();
     } catch (error) {
-      toast.error(
-        `${
-          activeTab === "signin" ? "Sign in" : "Sign up"
-        } failed. Please try again later.}`
-      );
+      console.log("Error is", error);
+      if (error instanceof Error) {
+        toast.error(
+          error.message || "An unknown error occurred. Please try again later."
+        );
+      } else {
+        toast.error("An unknown error occurred.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +184,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         <div className="relative w-full max-w-md overflow-hidden transition-all transform bg-white shadow-xl rounded-2xl">
           {/* Close button */}
           <button
-            onClick={onClose}
+            onClick={() => {
+              setFormData({
+                fullName: "",
+                email: "",
+                password: "",
+              });
+              onClose();
+            }}
             className="absolute z-10 text-gray-400 transition-colors right-4 top-4 hover:text-gray-600"
           >
             <X className="w-6 h-6" />

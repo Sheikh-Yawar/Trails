@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { FirebaseError, initializeApp } from "firebase/app";
 import {
   Auth,
   getAuth,
@@ -8,6 +8,8 @@ import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
   updateProfile,
+  signInWithEmailAndPassword,
+  signOut,
 } from "firebase/auth";
 import {
   doc,
@@ -27,6 +29,7 @@ import { Analytics, getAnalytics } from "firebase/analytics";
 import { createContext, useContext, useEffect, useState } from "react";
 import { getGradientColor } from "../components/getGradientColor";
 import { updateUserFields } from "../utils/CustomTypes";
+import { toast } from "react-toastify";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -58,6 +61,10 @@ interface FirebaseContextType {
     email: string,
     password: string,
     profileImageBase64: string | null
+  ) => Promise<void>;
+  signinWithEmailAndPassword: (
+    email: string,
+    password: string
   ) => Promise<void>;
   updateUserDetails: (value: updateUserFields) => Promise<void>;
   uploadBase64Image: (base64Image: string, path: string) => Promise<string>;
@@ -122,7 +129,7 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
     email: string,
     password: string,
     profileImageBase64: string | null
-  ) => {
+  ): Promise<void> => {
     try {
       // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
@@ -136,7 +143,6 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
       await sendEmailVerification(user);
 
       let profileImageURL = null;
-
       if (profileImageBase64) {
         profileImageURL = (await uploadBase64Image(
           profileImageBase64,
@@ -144,11 +150,13 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
         )) as string;
       }
 
+      // Update user profile
       await updateProfile(user, {
         displayName: name,
         photoURL: profileImageURL,
       });
 
+      // Set user in state
       const updatedUser: trailsUser = {
         uid: user.uid,
         name,
@@ -158,9 +166,79 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
       };
       setUser(updatedUser);
     } catch (error) {
-      if (error instanceof Error) {
-        console.error("Email/Password sign-in error:", error.message);
-        throw new Error(error.message);
+      if (error instanceof FirebaseError) {
+        console.error("Firebase sign-up error code:", error.code);
+
+        const errorMessages: Record<string, string> = {
+          "auth/email-already-in-use":
+            "This email is already registered. Try logging in instead.",
+          "auth/invalid-email":
+            "Invalid email format. Please enter a valid email address.",
+          "auth/weak-password":
+            "Password is too weak. Please use at least 6 characters.",
+          "auth/network-request-failed":
+            "Network error. Please check your connection and try again.",
+          "auth/internal-error":
+            "An unexpected error occurred. Please try again later.",
+          "auth/operation-not-allowed":
+            "Sign-up is currently disabled. Please contact support.",
+        };
+
+        throw new Error(
+          errorMessages[error.code] || "Something went wrong. Please try again."
+        );
+      } else {
+        console.error("Unknown error occurred", error);
+        throw new Error("Something went wrong. Please try again later.");
+      }
+    }
+  };
+
+  const signinWithEmailAndPassword = async (
+    email: string,
+    password: string
+  ) => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        firebaseAuth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+      if (!user.emailVerified) {
+        // Resend verification email
+        await sendEmailVerification(user);
+        await signOut(firebaseAuth);
+        throw new FirebaseError("auth/email-not-verified", "Custom Message");
+      }
+    } catch (error) {
+      if (error instanceof FirebaseError) {
+        console.error("Firebase sign-in error-code:", error.code);
+        // Define user-friendly error messages based on Firebase error codes
+        const errorMessages: Record<string, string> = {
+          "auth/invalid-email":
+            "The email address is not valid. Please enter a valid email.",
+          "auth/user-disabled":
+            "This account has been disabled. Please contact support.",
+          "auth/user-not-found":
+            "No account found with this email. Please sign up first.",
+          "auth/wrong-password":
+            "Incorrect password. Please try again or reset your password.",
+          "auth/too-many-requests":
+            "Too many failed attempts. Please try again later or reset your password.",
+          "auth/network-request-failed":
+            "Network error. Please check your internet connection and try again.",
+          "auth/internal-error":
+            "An unexpected error occurred. Please try again later.",
+          "auth/invalid-credential": "Invalid Credentials. Please try again.",
+          "auth/email-not-verified":
+            "Your email address is not verified. A verification email has been sent to your inbox. Please check your email and verify your account before logging in.",
+        };
+
+        throw new Error(
+          errorMessages[error.code] ||
+            "Something went wrong. Please try again later."
+        );
       } else {
         console.error("Unknown error occurred", error);
         throw new Error("Something went wrong. Please try again later.");
@@ -178,8 +256,6 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
       }
 
       await updateProfile(user, value);
-
-      console.log("User profile updated successfully.", user);
 
       const updatedUser: trailsUser = {
         uid: user.uid,
@@ -232,6 +308,7 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
         firebaseAnalytics,
         signupwithGoogle,
         signUpWithEmailAndPassword,
+        signinWithEmailAndPassword,
         uploadBase64Image,
         updateUserDetails,
       }}

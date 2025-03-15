@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { userFirebase } from "../context/Firebase";
 import ImageCropper from "./ImageCropper";
-import toast from "react-hot-toast";
 
 import { updateUserFields } from "../utils/CustomTypes";
+import { toast } from "react-toastify";
 
 type ProfilePanelProps = {
   profileRef: React.RefObject<HTMLDivElement>;
@@ -196,7 +196,7 @@ const ProfilePanel = ({
                     signOut(firebase?.firebaseAuth!);
                     setIsProfileOpen(false);
                     if (firebase) {
-                      firebase.userGradient = "#f3f4f6";
+                      firebase.userGradient = "";
                     }
                     navigate("/");
                   }}

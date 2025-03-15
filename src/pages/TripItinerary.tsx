@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import {
   MapPin,
   Star,
@@ -41,7 +41,8 @@ interface NewActivity {
 
 const TripItinerary: React.FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
-  console.log("Trip ID: ", tripId);
+  const { state: tripData } = useLocation();
+  console.log("Trip ID: ", tripId, tripData);
   const [isTripSaved, setIsTripSaved] = useState(false);
   const [editingDayId, setEditingDayId] = useState<string | null>(null);
   const [newActivity, setNewActivity] = useState<NewActivity>({
@@ -196,8 +197,8 @@ const TripItinerary: React.FC = () => {
         <div className="relative h-[40vh] group overflow-hidden mt-24 rounded-2xl">
           <div className="absolute inset-0 z-10 bg-black/40" />
           <img
-            src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&q=80&w=2070"
-            alt="Tokyo Cityscape"
+            src={tripData.tripTitleImage}
+            alt="Trip Title Image"
             className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
           />
           <div className="absolute inset-0 z-20 flex flex-col justify-center px-8">
@@ -246,32 +247,44 @@ const TripItinerary: React.FC = () => {
           </h2>
 
           <div className="flex gap-6 px-4 pb-6 overflow-x-auto scrollbar-thin">
-            {hotels.map((hotel) => (
-              <div
-                key={hotel.id}
-                className="flex-shrink-0 w-[300px] aspect-square bg-white rounded-xl border-2 border-transparent hover:border-[#1E90FF] transition-all duration-300 p-6"
-                style={{
-                  boxShadow:
-                    "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-                }}
-              >
-                <h3 className="mb-3 text-xl font-semibold text-primary">
-                  {hotel.name}
-                </h3>
-                <div className="flex items-center gap-1 mb-4">
-                  {Array.from({ length: hotel.rating }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className="w-4 h-4 text-yellow-400 fill-yellow-400"
-                    />
-                  ))}
-                  <span className="ml-2 text-sm text-gray-500">
-                    {hotel.priceRange}
-                  </span>
-                </div>
-                <p className="text-gray-600">{hotel.description}</p>
-              </div>
-            ))}
+            {tripData.hotelOptions.map(
+              (
+                hotel: {
+                  description: string;
+                  hotelAddress: string;
+                  hotelName: string;
+                  rating: number;
+                },
+                index: number
+              ) => {
+                console.log("Hotel is", hotel);
+
+                return (
+                  <div
+                    key={index}
+                    className="flex-shrink-0 w-[300px] aspect-square bg-white rounded-xl border-2 border-transparent hover:border-[#1E90FF] transition-all duration-300 p-6"
+                    style={{
+                      boxShadow:
+                        "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                    }}
+                  >
+                    <h3 className="mb-3 text-xl font-semibold text-primary">
+                      {hotel.hotelName}
+                    </h3>
+                    <div className="flex items-center gap-1 mb-4">
+                      {Array.from({ length: hotel.rating }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className="w-4 h-4 text-yellow-400 fill-yellow-400"
+                        />
+                      ))}
+                      <span className="ml-2 text-sm text-gray-500">PRICE</span>
+                    </div>
+                    <p className="text-gray-600">{hotel.description}</p>
+                  </div>
+                );
+              }
+            )}
           </div>
         </div>
 
