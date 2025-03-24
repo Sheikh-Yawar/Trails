@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import { X, Mail, Lock, User, Loader2, AlertCircle } from "lucide-react";
 import { useScrollLock } from "../utils/ScrollLockManager";
 import { useFocusTrap } from "../utils/FocusTrap";
-import { userFirebase } from "../context/Firebase";
+import { useFirebase } from "../context/Firebase";
 import ImageCropper from "./ImageCropper";
 import { toast } from "react-toastify";
 import { FirebaseError } from "firebase/app";
@@ -16,10 +16,10 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const profileImageRef = useRef<string | null>(null);
-  const firebase = userFirebase();
+  const firebase = useFirebase();
   const modalRef = useFocusTrap(isOpen);
   useScrollLock(isOpen);
-
+  const [image, setImage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("signin");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -236,7 +236,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   <label className="block text-sm font-medium text-center text-gray-700">
                     Profile Picture
                   </label>
-                  <ImageCropper profileImageRef={profileImageRef} />
+                  <ImageCropper
+                    profileImageRef={profileImageRef}
+                    image={image}
+                    setImage={setImage}
+                  />
                 </div>
 
                 {/* Full Name */}

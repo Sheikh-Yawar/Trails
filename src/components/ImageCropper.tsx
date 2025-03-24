@@ -1,5 +1,5 @@
 import { Camera, Check, Trash2 } from "lucide-react";
-import { userFirebase } from "../context/Firebase";
+import { useFirebase } from "../context/Firebase";
 import { useEffect, useRef, useState } from "react";
 import ReactCrop, {
   centerCrop,
@@ -12,6 +12,8 @@ import { toast } from "react-toastify";
 
 type ImageCropperProps = {
   profileImageRef: React.MutableRefObject<string | null>;
+  image: string | null;
+  setImage: React.Dispatch<React.SetStateAction<string | null>>;
   canChooseNewFile?: boolean;
   isPPRemoved?: boolean;
 };
@@ -21,13 +23,15 @@ const ASPECT_RATIO = 1;
 
 const ImageCropper = ({
   profileImageRef,
+  image,
+  setImage,
   canChooseNewFile = true,
 }: ImageCropperProps) => {
-  const firebase = userFirebase();
+  const firebase = useFirebase();
   const imgRef = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isPPRemoved, setIsPPRemoved] = useState(false);
-  const [image, setImage] = useState<string | null>(null);
+
   const [crop, setCrop] = useState<Crop>({
     unit: "%",
     x: 25,
@@ -87,6 +91,7 @@ const ImageCropper = ({
 
   const handleRemoveProfilePictureClick = () => {
     setIsPPRemoved(true);
+    setImage(null);
     profileImageRef.current = null;
   };
 

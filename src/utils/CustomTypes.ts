@@ -1,24 +1,34 @@
+import { Timestamp } from "firebase/firestore";
+
 export type updateUserFields = {
   displayName?: string;
   photoURL?: string | null;
 };
 
-export type tripDataType = {
+export type TripDataType = {
+  createdAt: Timestamp;
+  tripId: string;
+  tripName: string;
   tripTitleImage: string;
-  hotelOptions: hotelType[];
+  tripDays: number;
+  tripTravellers: number;
+  isTripSaved: boolean;
+  isCommunityTrip: boolean;
+  hotelOptions: HotelType[];
   itinerary: {
     dayNumber: number;
     dayTheme: string;
     placesToVisit: PlaceType[];
-    foodPlaces: foodPlaceType[];
+    foodPlaces: FoodPlaceType[];
   }[];
 };
 
-export type hotelType = {
+export type HotelType = {
   description: string;
   hotelAddress: string;
   hotelName: string;
   hotelImage?: string;
+  hotelImageReference?: string;
   pricePerNight: { fromPrice: number; toPrice: number };
   rating: number;
 };
@@ -30,11 +40,13 @@ export type PlaceType = {
   bestTimeToVisit: string[];
 };
 
-export type foodPlaceType = {
+export type FoodPlaceType = {
   foodPlaceName: string;
   description: string;
   rating: number;
   foodPlaceAddress: string;
+  approximatePricePerPerson: { fromPrice: number; toPrice: number };
+  foodPlaceImageReference?: string;
   foodPlaceImage?: string;
 };
 
@@ -42,5 +54,5 @@ export type ItineraryDayType = {
   dayNumber: number;
   dayTheme: string;
   placesToVisit: PlaceType[];
-  foodPlaces: foodPlaceType[];
+  foodPlaces: FoodPlaceType[];
 };

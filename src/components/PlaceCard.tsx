@@ -1,6 +1,19 @@
 import { Banknote, Star } from "lucide-react";
+import { useState } from "react";
 
 type CardType = "accomodation" | "restaurant";
+
+type PlaceCardProps = {
+  cardType: CardType;
+  height: number;
+  name: string;
+  image?: string;
+  description: string;
+  address: string;
+  pricePerNight?: { fromPrice: number; toPrice: number };
+  rating: number;
+  openGoogleMaps: (hotelName: string, hotelAddress: string) => void;
+};
 
 const PlaceCard = ({
   cardType,
@@ -12,17 +25,16 @@ const PlaceCard = ({
   rating,
   height,
   openGoogleMaps,
-}: {
-  cardType: CardType;
-  height: number;
-  name: string;
-  image?: string;
-  description: string;
-  address: string;
-  pricePerNight?: { fromPrice: number; toPrice: number };
-  rating: number;
-  openGoogleMaps: (hotelName: string, hotelAddress: string) => void;
-}) => {
+}: PlaceCardProps) => {
+  if (!image) {
+    if (cardType === "accomodation") {
+      image = "/defaultHotelImage.jpg";
+    } else if (cardType === "restaurant") {
+      image = "/public/defaultRestaurantImage.jpg";
+    }
+  }
+  const [imageSrc, setImageSrc] = useState(image);
+  const [isLoaded, setIsLoaded] = useState(false);
   return (
     <div
       className="flex-shrink-0 w-[300px]   aspect-square bg-white rounded-xl border-2 border-transparent hover:border-[#1E90FF] transition-all overflow-clip duration-300 p-6 pb-2 group"
@@ -33,9 +45,21 @@ const PlaceCard = ({
       }}
     >
       <img
-        src={image ? image : "../../public/defaultHotelImage.jpg"}
+        loading="lazy"
+        src={imageSrc}
+        onError={() => {
+          console.log("Image not found", name);
+          if (cardType === "accomodation") {
+            setImageSrc("/defaultHotelImage.jpg");
+          } else if (cardType === "restaurant") {
+            setImageSrc("/public/defaultRestaurantImage.jpg");
+          }
+        }}
+        onLoad={() => setIsLoaded(true)}
         alt="Trip Title Image"
-        className="object-cover w-full h-[200px] transition-transform duration-700 group-hover:scale-105 rounded-xl"
+        className={`object-cover w-full h-[200px] transition-transform duration-700 group-hover:scale-105 rounded-xl ${
+          isLoaded ? "opacity-100" : "opacity-0"
+        }`}
       />
       <h3 className="h-8 mt-2 text-xl font-semibold text-primary overflow-clip">
         {name}
@@ -55,11 +79,12 @@ const PlaceCard = ({
         {pricePerNight && (
           <span className="flex items-center gap-1 ml-2 text-sm text-gray-500">
             <Banknote className="w-5" />
-            {pricePerNight.fromPrice}-{pricePerNight.toPrice} INR/Night
+            {pricePerNight.fromPrice}-{pricePerNight.toPrice} INR/
+            {`${cardType === "accomodation" ? "Night" : "Person"}`}
           </span>
         )}
       </div>
-      <p className="text-gray-600 h-[30%] ">{description}</p>
+      <p className="text-gray-600 h-[30%] pb-2 ">{description}</p>
     </div>
   );
 };

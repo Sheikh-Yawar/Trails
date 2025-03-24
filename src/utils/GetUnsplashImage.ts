@@ -1,16 +1,11 @@
-export async function GetUnsplashImage(
-  placeName: string
-): Promise<string | null> {
-  if (!placeName) return null;
-
-  // Construct a more relevant search query
+export async function GetUnsplashImage(placeName: string): Promise<string> {
   const query = `${placeName} trip`;
 
   try {
     const response = await fetch(
       `https://api.unsplash.com/search/photos?query=${encodeURIComponent(
         query
-      )}&orientation=landscape&per_page=1&client_id=${
+      )}&orientation=landscape&per_page=10&client_id=${
         import.meta.env.VITE_UNSPLASH_ACCESS_KEY
       }`
     );
@@ -20,15 +15,28 @@ export async function GetUnsplashImage(
     }
 
     const data = await response.json();
-    const image = data.results[0];
+    const results = data.results;
 
-    if (image) {
-      return `${image.urls.raw}&w=3840&h=2160&fit=crop`; // 4K resolution
+    if (results && results.length > 0) {
+      // Get a random index within the results array
+      const randomIndex = getRandomInt(0, results.length - 1);
+
+      console.log("Random index is", randomIndex);
+
+      const image = results[randomIndex];
+      return `${image.urls.raw}&w=3840&h=2160&fit=crop`;
     }
 
-    return null;
+    return "/defaultTripTitleImage.jpg";
   } catch (error) {
     console.error("Error fetching image:", error);
-    return null;
+    return "/defaultTripTitleImage.jpg";
   }
+}
+
+// Helper function to generate a random integer within a range
+function getRandomInt(min: number, max: number): number {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }

@@ -12,12 +12,16 @@ import {
   signOut,
 } from "firebase/auth";
 import {
+  collection,
+  deleteDoc,
   doc,
   getDoc,
+  getDocs,
   getFirestore,
+  query,
   setDoc,
-  Timestamp,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import {
   getStorage,
@@ -28,8 +32,7 @@ import {
 import { Analytics, getAnalytics } from "firebase/analytics";
 import { createContext, useContext, useEffect, useState } from "react";
 import { getGradientColor } from "../components/getGradientColor";
-import { updateUserFields } from "../utils/CustomTypes";
-import { toast } from "react-toastify";
+import { TripDataType, updateUserFields } from "../utils/CustomTypes";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -53,6 +56,7 @@ interface FirebaseContextType {
   isAuthLoaded: boolean;
   userGradient: string;
   user: trailsUser | null;
+  savedTrips: TripDataType[];
   firebaseAnalytics: Analytics;
   firebaseAuth: Auth;
   signupwithGoogle: () => Promise<void>;
@@ -68,6 +72,19 @@ interface FirebaseContextType {
   ) => Promise<void>;
   updateUserDetails: (value: updateUserFields) => Promise<void>;
   uploadBase64Image: (base64Image: string, path: string) => Promise<string>;
+  saveDataToFireStore: (
+    collectionName: string,
+    data: any,
+    tripId: string,
+    userId: string,
+    action: "favourites" | "community"
+  ) => Promise<string>;
+  removeDataFromFireStore: (
+    collectionName: string,
+    tripId: string,
+    action: "favourites" | "community"
+  ) => Promise<string>;
+  getUserFavouriteTrips: (userId: string) => Promise<void>;
 }
 
 let userGradient = "#f3f4f6";
@@ -81,7 +98,7 @@ const FirebaseContext = createContext<FirebaseContextType | null>(null);
 
 const firebaseGoogleProvider = new GoogleAuthProvider();
 
-export const userFirebase = () => useContext(FirebaseContext);
+export const useFirebase = () => useContext(FirebaseContext);
 
 export const uploadBase64Image = async (
   base64Image: string,
@@ -110,7 +127,101 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
   children,
 }) => {
   const [user, setUser] = useState<trailsUser | null>(null);
+  const [savedTrips, setSavedTrips] = useState<TripDataType[]>([]);
   const [isAuthLoaded, setIsAuthLoaded] = useState(false);
+
+  const saveDataToFireStore = async (
+    collectionName: string,
+    data: any,
+    tripId: string,
+    userId: string,
+    action: "favourites" | "community"
+  ): Promise<string> => {
+    try {
+      await setDoc(doc(firebaseFirestore, "trips", tripId), {
+        userId,
+        tripId,
+        ...data,
+      });
+      if (action === "favourites") {
+        await getUserFavouriteTrips(userId);
+      }
+
+      return action === "favourites"
+        ? "Added to Favourites!"
+        : "Trip has been shared with the community!";
+    } catch (error) {
+      console.error("Error saving Dats:", error);
+      throw new Error("Something went wrong. Please try again later.");
+    }
+  };
+
+  const removeDataFromFireStore = async (
+    collectionName: string,
+    tripId: string,
+    action: "favourites" | "community"
+  ): Promise<string> => {
+    try {
+      const tripDocRef = doc(firebaseFirestore, "trips", tripId);
+      const tripDocSnap = await getDoc(tripDocRef);
+
+      if (tripDocSnap.exists()) {
+        const tripData = tripDocSnap.data() as TripDataType;
+
+        if (tripData.isTripSaved && tripData.isCommunityTrip) {
+          const updateData: Partial<TripDataType> = {};
+          if (action === "favourites") {
+            updateData.isTripSaved = false;
+          } else if (action === "community") {
+            updateData.isCommunityTrip = false;
+          }
+
+          await updateDoc(tripDocRef, updateData);
+
+          // Update local state if it's a favourite trip
+          if (action === "favourites") {
+            console.log("Updating state", tripId);
+            setSavedTrips((prevTrips: TripDataType[]) =>
+              prevTrips.filter((trip) => trip.tripId !== tripId)
+            );
+          }
+          return action === "favourites"
+            ? "Removed from Favourites!"
+            : "Removed from Community!";
+        } else {
+          // Only one is true, delete the document
+          await deleteDoc(tripDocRef);
+          setSavedTrips((prevTrips: TripDataType[]) =>
+            prevTrips.filter((trip) => trip.tripId !== tripId)
+          );
+          return `Removed from ${
+            action === "favourites" ? "Favourites" : "Community"
+          }!`;
+        }
+      } else {
+        throw new Error("Trip not found.");
+      }
+    } catch (error) {
+      console.log(`Error removing trip`, error);
+      throw new Error("Something went wrong. Please try again later.");
+    }
+  };
+
+  const getUserFavouriteTrips = async (userId: string): Promise<void> => {
+    const tripsRef = collection(firebaseFirestore, "trips");
+    const q = query(
+      tripsRef,
+      where("userId", "==", userId),
+      where("isTripSaved", "==", true)
+    );
+
+    const querySnapshot = await getDocs(q);
+    const trips = querySnapshot.docs.map((doc) => {
+      return doc.data() as TripDataType;
+    });
+
+    setSavedTrips(trips);
+  };
 
   const signupwithGoogle = async () => {
     try {
@@ -285,6 +396,7 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
             emailVerified: user.emailVerified,
           };
           setUser(userFromFirestore);
+          await getUserFavouriteTrips(user.uid);
           userGradient = getGradientColor(user.uid);
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -304,6 +416,7 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
         isAuthLoaded,
         userGradient,
         user,
+        savedTrips,
         firebaseAuth,
         firebaseAnalytics,
         signupwithGoogle,
@@ -311,6 +424,9 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
         signinWithEmailAndPassword,
         uploadBase64Image,
         updateUserDetails,
+        saveDataToFireStore,
+        removeDataFromFireStore,
+        getUserFavouriteTrips,
       }}
     >
       {children}

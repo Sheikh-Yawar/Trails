@@ -1,29 +1,58 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { MapPin, Plus, Bookmark, Calendar, Users, Trash2 } from "lucide-react";
 import {
-  foodPlaceType,
-  hotelType,
-  ItineraryDayType,
-  tripDataType,
-  PlaceType,
-} from "../utils/CustomTypes";
+  MapPin,
+  Plus,
+  Calendar,
+  Users,
+  Trash2,
+  Loader,
+  Heart,
+  Globe,
+} from "lucide-react";
+import { TripDataType } from "../utils/CustomTypes";
+
 import PlaceCard from "../components/PlaceCard";
-import GooglePlacesAutocomplete from "react-google-places-autocomplete";
+import AddActivityForm from "../components/AddActivityForm";
+import { useFirebase } from "../context/Firebase";
+import { toast } from "react-toastify";
 import { Option } from "react-google-places-autocomplete/build/types";
+import { Timestamp } from "firebase/firestore";
 
 const TripItinerary: React.FC = () => {
   const navigate = useNavigate();
+  const firebase = useFirebase();
   const { tripId } = useParams<{ tripId: string }>();
-  const { state: tripData } = useLocation();
-  console.log("Trip ID: ", tripId, tripData);
-  if (!tripData) {
-    navigate("/");
-  }
-  const [currentTripData, setCurrentTripData] =
-    useState<tripDataType>(tripData);
-  const [isTripSaved, setIsTripSaved] = useState(false);
+  const [currentTripData, setCurrentTripData] = useState<TripDataType | null>(
+    null
+  );
+  const [isTripSavingLoading, setIsTripSavingLoading] = useState(false);
+  const [isCommunityTripLoading, setIsCommunityTripLoading] = useState(false);
   const [editingDayId, setEditingDayId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!tripId) {
+      toast.error("No  tripId found. Navigating to home page...");
+      setTimeout(() => {
+        navigate("/");
+      }, 5000);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      // Check if running in browser
+      const data = sessionStorage.getItem(`trails-${tripId}`);
+      if (data) {
+        console.log("Trip data is", JSON.parse(data));
+        setCurrentTripData(JSON.parse(data) as TripDataType);
+      } else {
+        toast.error("No trip data found. Navigating to home page...");
+        setTimeout(() => {
+          navigate("/");
+        }, 5000);
+      }
+    }
+  }, [tripId]);
 
   const openGoogleMaps = (hotelName: string, hotelAddress: string) => {
     const query = encodeURIComponent(`${hotelName}, ${hotelAddress}`);
@@ -31,304 +60,518 @@ const TripItinerary: React.FC = () => {
     window.open(mapsUrl, "_blank"); // Opens in a new tab
   };
 
-  const handleDeletePlace = (dayId: number, placeId: number) => {};
+  const handleShareToCommunityClick = async () => {
+    if (!tripId) {
+      toast.error("Trip ID not found");
+      return;
+    }
 
-  return (
-    <div className="min-h-screen bg-white">
-      {/* Hero Section */}
-      <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
-        <div className="relative h-[40vh] group overflow-hidden mt-24 rounded-2xl">
-          <div className="absolute inset-0 z-10 bg-black/40" />
-          <img
-            src={currentTripData.tripTitleImage}
-            alt="Trip Title Image"
-            className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 z-20 flex flex-col justify-center px-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="mb-4 text-4xl font-bold text-white sm:text-5xl lg:text-6xl">
-                  Japanese Cultural Journey
-                </h1>
-                <div className="flex items-center gap-6 text-white/90">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5" />
-                    <span className="text-lg">12 Days</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    <span className="text-lg">2 Travelers</span>
-                  </div>
-                </div>
-              </div>
-              <div className="has-tooltip">
-                <button
-                  onClick={() => setIsTripSaved(!isTripSaved)}
-                  className="p-3 transition-colors rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover"
-                >
-                  <Bookmark
-                    className={`w-6 h-6 ${
-                      isTripSaved ? "fill-white text-white" : "text-white"
-                    }`}
-                  />
-                </button>
-                <span className="absolute px-2 py-1 text-sm text-white rounded tooltip bg-black/75 -left-8 -bottom-8">
-                  Save Trip
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    if (!firebase?.user) {
+      toast.error("User not found. Please signup/login to save trips.");
+      return;
+    }
+    setIsCommunityTripLoading(true);
+    try {
+      if (!currentTripData) {
+        console.log("Current Trip Data is empty");
+        return;
+      }
+      const updatedTripData = {
+        ...currentTripData,
+        isCommunityTrip: true,
+      };
+      const response = await firebase?.saveDataToFireStore(
+        "trips",
+        updatedTripData,
+        tripId,
+        firebase?.user?.uid,
+        "community"
+      );
+      toast.success(response);
+      sessionStorage.setItem(
+        `trails-${tripId}`,
+        JSON.stringify(updatedTripData)
+      );
+      setCurrentTripData(updatedTripData);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("An unknown error occurred.");
+      }
+    }
+    setIsCommunityTripLoading(false);
+  };
 
-      {/* Main Content */}
-      <div className="px-4 py-12 mx-auto max-w-7xl sm:px-6 lg:px-8">
-        {/* Accommodations Section */}
-        <div className="mb-12">
-          <h2 className="mb-6 text-2xl font-bold text-primary">
-            Accommodations
-          </h2>
+  const handleTripSaveClick = async () => {
+    if (!tripId) {
+      toast.error("Trip ID not found");
+      return;
+    }
 
-          <div className="flex gap-6 px-4 pb-6 overflow-x-auto scrollbar-thin">
-            {currentTripData.hotelOptions.map((hotel, index) => {
-              return (
-                <PlaceCard
-                  cardType="accomodation"
-                  height={500}
-                  address={hotel.hotelAddress}
-                  description={hotel.description}
-                  image={hotel.hotelImage}
-                  name={hotel.hotelName}
-                  pricePerNight={hotel.pricePerNight}
-                  rating={hotel.rating}
-                  openGoogleMaps={openGoogleMaps}
-                  key={`${index}-${hotel.hotelName}`}
-                />
-              );
-            })}
-          </div>
-        </div>
+    if (!firebase?.user) {
+      toast.error("User not found. Please signup/login to save trips.");
+      return;
+    }
 
-        {/* Itinerary Section */}
-        <div>
-          <h2 className="mb-6 text-2xl font-bold text-primary">
-            Daily Itinerary
-          </h2>
-          <div className="space-y-6">
-            {currentTripData.itinerary.map((day, index) => (
-              <div
-                key={day.dayNumber}
-                className="p-6 transition-shadow bg-white border border-gray-200 shadow-sm rounded-xl hover:shadow-md animate-fade-in"
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-xl font-semibold text-primary">
-                      Day {day.dayNumber}
-                    </h3>
-                    <p className="text-secondary">{day.dayTheme}</p>
-                  </div>
-                </div>
-                <h2 className="pb-2 pl-5 text-xl font-bold text-primary">
-                  Recommended Food Places
-                </h2>
-                <div className="flex gap-6 px-4 pb-6 overflow-x-auto scrollbar-thin ">
-                  {currentTripData.itinerary[index].foodPlaces.map(
-                    (foodPlace, index) => {
-                      return (
-                        <PlaceCard
-                          height={440}
-                          cardType="restaurant"
-                          address={foodPlace.foodPlaceAddress}
-                          description={foodPlace.description}
-                          image={foodPlace.foodPlaceImage}
-                          name={foodPlace.foodPlaceName}
-                          rating={foodPlace.rating}
-                          key={`${index}-${foodPlace.foodPlaceName}`}
-                          openGoogleMaps={openGoogleMaps}
-                        />
-                      );
-                    }
-                  )}
-                </div>
-                <div className="space-y-4">
-                  {currentTripData.itinerary[index].placesToVisit.map(
-                    (place, PlaceToVisitindex) => (
-                      <div
-                        key={`${PlaceToVisitindex}-${place.placeName}`}
-                        className="p-4 transition-all duration-300 rounded-lg bg-gray-50 hover:bg-gray-100"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2">
-                            <h4
-                              onClick={() =>
-                                openGoogleMaps(
-                                  place.placeName,
-                                  place.placeAddress
-                                )
-                              }
-                              className="font-medium cursor-pointer text-primary hover:underline"
-                            >
-                              {place.placeName}
-                            </h4>
-                            <p className="text-sm text-gray-600">
-                              {place.description}
-                            </p>
-                            <div className="flex items-center gap-4 text-sm text-gray-500">
-                              <div className="flex items-center gap-1">
-                                <MapPin className="w-4 h-4" />
-                                Best Time:
-                                {currentTripData.itinerary[index].placesToVisit[
-                                  PlaceToVisitindex
-                                ].bestTimeToVisit.map((time: string) => {
-                                  return (
-                                    <span className="px-2 text-white bg-gray-600 rounded-full mt-1 text-[5px]">
-                                      {time}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() =>
-                              handleDeletePlace(day.dayNumber, index)
-                            }
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  )}
+    setIsTripSavingLoading(true);
+    try {
+      if (!currentTripData) {
+        console.log("Current Trip Data is empty");
+        return;
+      }
+      const updatedTripData = {
+        ...currentTripData,
+        isTripSaved: true,
+      };
+      const response = await firebase?.saveDataToFireStore(
+        "trips",
+        updatedTripData,
+        tripId,
+        firebase?.user?.uid,
+        "favourites"
+      );
+      toast.success(response);
 
-                  {editingDayId === day.dayNumber ? (
-                    <AddActivityForm
-                      dayNumber={editingDayId}
-                      setEditingDayId={setEditingDayId}
-                      setCurrentTripData={setCurrentTripData}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => setEditingDayId(day.dayNumber)}
-                      className="flex items-center justify-center w-full gap-2 py-3 text-gray-500 transition-colors border-2 border-gray-200 border-dashed rounded-lg hover:border-secondary hover:text-secondary"
-                    >
-                      <Plus className="w-5 h-5" />
-                      Add Activity
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+      sessionStorage.setItem(
+        `trails-${tripId}`,
+        JSON.stringify(updatedTripData)
+      );
+      setCurrentTripData(updatedTripData);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("An unknown error occurred.");
+      }
+    }
+    setIsTripSavingLoading(false);
+  };
 
-const AddActivityForm = ({
-  dayNumber,
-  setCurrentTripData,
-  setEditingDayId,
-}: {
-  dayNumber: number;
-  setEditingDayId: React.Dispatch<React.SetStateAction<number | null>>;
-  setCurrentTripData: React.Dispatch<React.SetStateAction<tripDataType>>;
-}) => {
-  const [selectedPlace, setSelectedPlace] = useState<Option | null>(null);
-  const [activityDescription, setActivityDescription] = useState("");
-  const [bestTime, setBestTime] = useState("");
+  const handleRemoveTripSaveClick = async (tripId: string) => {
+    if (!tripId) {
+      toast.error("Trip ID not found");
+      return;
+    }
 
-  const handleAddActivity = () => {
-    console.log("Adding activity for day", selectedPlace);
-    if (!selectedPlace) return; // Prevent adding an empty activity
+    setIsTripSavingLoading(true);
 
-    const bestTimeArray = [bestTime];
+    try {
+      if (!currentTripData) {
+        console.log("Current Trip Data is empty");
+        return;
+      }
 
-    setCurrentTripData((prev) => {
-      const updatedItinerary = prev.itinerary.map((day) => {
-        if (day.dayNumber === dayNumber) {
-          return {
-            ...day,
-            placesToVisit: [
-              ...day.placesToVisit,
-              {
-                placeName: selectedPlace.label,
-                placeAddress: selectedPlace.label,
-                description: activityDescription,
-                bestTimeToVisit: bestTimeArray,
-              },
-            ],
-          };
-        }
+      const updatedTripData = {
+        ...currentTripData,
+        isTripSaved: false,
+      };
+      const response = await firebase?.removeDataFromFireStore(
+        "trips",
+        tripId,
+        "favourites"
+      );
+      toast.success(response);
+
+      sessionStorage.setItem(
+        `trails-${tripId}`,
+        JSON.stringify(updatedTripData)
+      );
+      setCurrentTripData(updatedTripData);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("An unknown error occurred.");
+      }
+    }
+    setIsTripSavingLoading(false);
+  };
+
+  const handleRemoveFromCommunityClick = async (tripId: string) => {
+    if (!tripId) {
+      toast.error("Trip ID not found");
+      return;
+    }
+
+    setIsCommunityTripLoading(true);
+
+    try {
+      if (!currentTripData) {
+        console.log("Current Trip Data is empty");
+        return;
+      }
+
+      const updatedTripData = {
+        ...currentTripData,
+        isCommunityTrip: false,
+      };
+      const response = await firebase?.removeDataFromFireStore(
+        "trips",
+        tripId,
+        "community"
+      );
+      toast.success(response);
+
+      sessionStorage.setItem(
+        `trails-${tripId}`,
+        JSON.stringify(updatedTripData)
+      );
+      setCurrentTripData(updatedTripData);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("An unknown error occurred.");
+      }
+    }
+    setIsCommunityTripLoading(false);
+  };
+
+  const handleDeletePlace = (dayId: number, placeId: number) => {
+    if (!currentTripData) {
+      console.log("Current Trip Data is empty");
+      return;
+    }
+
+    const updatedItinerary = currentTripData.itinerary.map((day, index) => {
+      if (index === dayId) {
+        return {
+          ...day,
+          placesToVisit: day.placesToVisit.filter(
+            (_, index) => index !== placeId
+          ),
+        };
+      } else {
         return day;
-      });
-
-      return { ...prev, itinerary: updatedItinerary };
+      }
     });
 
+    const updatedTripData = {
+      ...currentTripData,
+      itinerary: updatedItinerary,
+    };
+    sessionStorage.setItem(`trails-${tripId}`, JSON.stringify(updatedTripData));
+    setCurrentTripData(updatedTripData);
+  };
+
+  const handleAddPlace = (
+    selectedPlace: Option | null,
+    placeDescription: string,
+    dayNumber: number,
+    bestTimeArray: {
+      from: string;
+      to: string;
+    }[]
+  ) => {
+    if (
+      !selectedPlace ||
+      placeDescription === "" ||
+      bestTimeArray[0].from === "" ||
+      bestTimeArray[0].to === ""
+    ) {
+      toast.error("Please fill all the fields.");
+      return; // Prevent adding an empty activity
+    }
+    const updatedBestTimeArray = bestTimeArray.map((time) => {
+      return `${time.from} - ${time.to}`;
+    });
+
+    if (!currentTripData) {
+      console.log("Current Trip Data is empty");
+      return;
+    }
+
+    const updatedItinerary = currentTripData.itinerary.map((day) => {
+      if (day.dayNumber === dayNumber) {
+        return {
+          ...day,
+          placesToVisit: [
+            ...day.placesToVisit,
+            {
+              placeName: selectedPlace.label,
+              placeAddress: selectedPlace.label,
+              description: placeDescription,
+              bestTimeToVisit: updatedBestTimeArray,
+            },
+          ],
+        };
+      }
+      return day;
+    });
+
+    const updatedTripData = {
+      ...currentTripData,
+      itinerary: updatedItinerary,
+    };
+
+    sessionStorage.setItem(`trails-${tripId}`, JSON.stringify(updatedTripData));
+    setCurrentTripData(updatedTripData);
     setEditingDayId(null);
   };
 
   return (
-    <div className="p-4 bg-white border-2 rounded-lg border-secondary animate-fade-in">
-      <div className="space-y-4">
-        <div>
-          <GooglePlacesAutocomplete
-            apiKey={import.meta.env.VITE_GOOGLE_PLACE_API_KEY}
-            selectProps={{
-              value: selectedPlace,
-              onChange: (value) => {
-                console.log("Google Maps value is", value);
-                setSelectedPlace(value);
-              },
-            }}
-          />
+    <div>
+      {currentTripData ? (
+        <div className="min-h-screen bg-white">
+          {/* Hero Section */}
+          <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
+            <div className="relative h-[40vh] group overflow-hidden mt-24 rounded-2xl">
+              <div className="absolute inset-0 z-10 bg-black/40" />
+              <img
+                loading="lazy"
+                src={currentTripData.tripTitleImage}
+                alt="Trip Title Image"
+                className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 z-20 flex flex-col justify-center px-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="mb-4 text-4xl font-bold text-white overflow-clip sm:text-5xl lg:text-6xl">
+                      {currentTripData.tripName}
+                    </h1>
+                    <div className="flex items-center gap-6 text-white/90">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-5 h-5" />
+                        <span className="text-lg">
+                          {currentTripData.tripDays} Days
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Users className="w-5 h-5" />
+                        <span className="text-lg">
+                          {currentTripData.tripTravellers} Travelers
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      title={
+                        currentTripData.isTripSaved
+                          ? "Remove from favourites"
+                          : "Add to favourites"
+                      }
+                      onClick={async () => {
+                        if (isTripSavingLoading) return;
+                        console.log("Req sent");
+                        if (!currentTripData.isTripSaved) {
+                          handleTripSaveClick();
+                        } else {
+                          handleRemoveTripSaveClick(tripId!);
+                        }
+                      }}
+                      className="p-3 transition-colors rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover"
+                    >
+                      {isTripSavingLoading ? (
+                        <Loader className={`w-6 h-6 text-white animate-spin`} />
+                      ) : (
+                        <Heart
+                          className={`w-6 h-6 ${
+                            currentTripData.isTripSaved
+                              ? "fill-red-500 text-red-500"
+                              : "text-white"
+                          }`}
+                        />
+                      )}
+                    </button>
+                    <button
+                      title={
+                        currentTripData.isCommunityTrip
+                          ? "Remove from Community"
+                          : "Share with Community"
+                      }
+                      onClick={async () => {
+                        if (isCommunityTripLoading) return;
+                        if (!currentTripData.isCommunityTrip) {
+                          handleShareToCommunityClick();
+                        } else {
+                          handleRemoveFromCommunityClick(tripId!);
+                        }
+                      }}
+                      className="p-3 transition-colors rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover"
+                    >
+                      {" "}
+                      {isCommunityTripLoading ? (
+                        <Loader className={`w-6 h-6 text-white animate-spin`} />
+                      ) : (
+                        <Globe
+                          className={`w-6 h-6  ${
+                            currentTripData.isCommunityTrip
+                              ? "text-blue-400"
+                              : "text-white"
+                          }`}
+                        />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="px-4 py-12 mx-auto max-w-7xl sm:px-6 lg:px-8">
+            {/* Accommodations Section */}
+            <div className="mb-12">
+              <h2 className="mb-6 text-2xl font-bold text-primary">
+                Accommodations
+              </h2>
+
+              <div className="flex gap-6 px-4 pb-6 overflow-x-auto scrollbar-thin">
+                {currentTripData.hotelOptions.map((hotel, index) => {
+                  return (
+                    <PlaceCard
+                      cardType="accomodation"
+                      height={500}
+                      address={hotel.hotelAddress}
+                      description={hotel.description}
+                      image={hotel.hotelImage}
+                      name={hotel.hotelName}
+                      pricePerNight={hotel.pricePerNight}
+                      rating={hotel.rating}
+                      openGoogleMaps={openGoogleMaps}
+                      key={`${index}-${hotel.hotelName}`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Itinerary Section */}
+            <div>
+              <h2 className="mb-6 text-2xl font-bold text-primary">
+                Daily Itinerary
+              </h2>
+              <div className="space-y-6">
+                {currentTripData.itinerary.map((day, dayIndex) => (
+                  <div
+                    key={day.dayNumber}
+                    className="p-6 transition-shadow bg-white border border-gray-200 shadow-sm rounded-xl hover:shadow-md animate-fade-in"
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-xl font-semibold text-primary">
+                          Day {day.dayNumber}
+                        </h3>
+                        <p className="text-secondary">{day.dayTheme}</p>
+                      </div>
+                    </div>
+                    <h2 className="pb-2 pl-5 text-xl font-bold text-primary">
+                      Recommended Food Places
+                    </h2>
+                    <div className="flex gap-6 p-4 overflow-x-auto scrollbar-thin ">
+                      {currentTripData.itinerary[dayIndex].foodPlaces.map(
+                        (foodPlace, index) => {
+                          return (
+                            <PlaceCard
+                              height={440}
+                              cardType="restaurant"
+                              address={foodPlace.foodPlaceAddress}
+                              description={foodPlace.description}
+                              image={foodPlace.foodPlaceImage}
+                              name={foodPlace.foodPlaceName}
+                              rating={foodPlace.rating}
+                              pricePerNight={
+                                foodPlace.approximatePricePerPerson
+                              }
+                              key={`${index}-${foodPlace.foodPlaceName}`}
+                              openGoogleMaps={openGoogleMaps}
+                            />
+                          );
+                        }
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="pt-2 pl-5 text-xl font-bold text-primary">
+                        Recommended Places to visit
+                      </h2>
+                      <div className="p-4 space-y-4">
+                        {currentTripData.itinerary[dayIndex].placesToVisit.map(
+                          (place, placeToVisitindex) => (
+                            <div
+                              key={`${placeToVisitindex}-${place.placeName}`}
+                              className="p-4 transition-all duration-300 rounded-lg bg-gray-50 hover:bg-gray-100"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-2">
+                                  <h4
+                                    onClick={() =>
+                                      openGoogleMaps(
+                                        place.placeName,
+                                        place.placeAddress
+                                      )
+                                    }
+                                    className="font-medium cursor-pointer text-primary hover:underline"
+                                  >
+                                    {place.placeName}
+                                  </h4>
+                                  <p className="text-sm text-gray-600">
+                                    {place.description}
+                                  </p>
+                                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                                    <div className="flex items-center gap-1">
+                                      <MapPin className="w-4 h-4" />
+                                      Best Time:
+                                      {place.bestTimeToVisit.map(
+                                        (time: string, index: number) => {
+                                          return (
+                                            <span
+                                              key={`time-${index}`}
+                                              className="px-2 text-white bg-gray-600 rounded-full mt-1 text-[5px]"
+                                            >
+                                              {time}
+                                            </span>
+                                          );
+                                        }
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    handleDeletePlace(
+                                      dayIndex,
+                                      placeToVisitindex
+                                    )
+                                  }
+                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        )}
+
+                        {editingDayId === day.dayNumber ? (
+                          <AddActivityForm
+                            dayNumber={editingDayId}
+                            setEditingDayId={setEditingDayId}
+                            handleAddPlace={handleAddPlace}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setEditingDayId(day.dayNumber)}
+                            className="flex items-center justify-center w-full gap-2 py-3 text-gray-500 transition-colors border-2 border-gray-200 border-dashed rounded-lg hover:border-secondary hover:text-secondary"
+                          >
+                            <Plus className="w-5 h-5" />
+                            Add Activity
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-        <div>
-          <input
-            type="text"
-            placeholder="Activity description"
-            value={activityDescription}
-            onChange={(e) => {
-              setActivityDescription(e.target.value);
-            }}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-          />
-        </div>
-        <div>
-          <input
-            type="text"
-            placeholder="Best time to visit (e.g., 9:00 AM - 11:00 AM)"
-            value={bestTime}
-            onChange={(e) => {
-              setBestTime(e.target.value);
-            }}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg outline-none focus:border-secondary focus:ring-1 focus:ring-secondary"
-          />
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleAddActivity}
-            className="flex-1 px-4 py-2 text-white transition-colors rounded-lg bg-secondary hover:bg-secondary/90"
-          >
-            Save
-          </button>
-          <button
-            onClick={() => {
-              setEditingDayId(null);
-              setSelectedPlace(null);
-              setActivityDescription("");
-              setBestTime("");
-            }}
-            className="flex-1 px-4 py-2 transition-colors border border-gray-200 rounded-lg hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
+      ) : (
+        <div></div>
+      )}
     </div>
   );
 };
+
 export default TripItinerary;

@@ -2,7 +2,7 @@ import { signOut } from "firebase/auth";
 import { Edit2, Loader2, LogOut, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { userFirebase } from "../context/Firebase";
+import { useFirebase } from "../context/Firebase";
 import ImageCropper from "./ImageCropper";
 
 import { updateUserFields } from "../utils/CustomTypes";
@@ -20,11 +20,12 @@ const ProfilePanel = ({
   setIsProfileOpen,
 }: ProfilePanelProps) => {
   const navigate = useNavigate();
-  const firebase = userFirebase();
+  const firebase = useFirebase();
   const [username, setUsername] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isSavingChanges, setIsSavingChanges] = useState(false);
   const profileImageRef = useRef<string | null>(null);
+  const [image, setImage] = useState<string | null>(null);
   const [originalUsername, setOriginalUsername] = useState("");
   const [originalProfileImage, setOriginalProfileImage] = useState<
     string | null
@@ -75,6 +76,7 @@ const ProfilePanel = ({
 
   const handleCancelChanges = () => {
     setIsEditing(false);
+    setImage(null);
     profileImageRef.current = originalProfileImage;
     setUsername(originalUsername);
   };
@@ -122,15 +124,12 @@ const ProfilePanel = ({
             <div className="p-6 space-y-6">
               {/* Profile Picture */}
               <div className="flex flex-col items-center mt-4 space-y-4">
-                {firebase?.user && firebase.user.profileImage ? (
+                {firebase?.user && firebase.user.profileImage && (
                   <ImageCropper
                     profileImageRef={profileImageRef}
                     canChooseNewFile={isEditing}
-                  />
-                ) : (
-                  <ImageCropper
-                    profileImageRef={profileImageRef}
-                    canChooseNewFile={isEditing}
+                    image={image}
+                    setImage={setImage}
                   />
                 )}
               </div>
