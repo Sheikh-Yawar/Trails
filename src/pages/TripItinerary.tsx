@@ -345,66 +345,82 @@ const TripItinerary: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      title={
-                        currentTripData.isTripSaved
-                          ? "Remove from favourites"
-                          : "Add to favourites"
-                      }
-                      onClick={async () => {
-                        if (isTripSavingLoading) return;
-                        console.log("Req sent");
-                        if (!currentTripData.isTripSaved) {
-                          handleTripSaveClick();
-                        } else {
-                          handleRemoveTripSaveClick(tripId!);
+                  {firebase?.user?.uid === currentTripData.userId && (
+                    <div className="flex gap-2">
+                      <button
+                        title={
+                          currentTripData.isTripSaved
+                            ? "Remove from favourites"
+                            : "Add to favourites"
                         }
-                      }}
-                      className="p-3 transition-colors rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover"
-                    >
-                      {isTripSavingLoading ? (
-                        <Loader className={`w-6 h-6 text-white animate-spin`} />
-                      ) : (
-                        <Heart
-                          className={`w-6 h-6 ${
-                            currentTripData.isTripSaved
-                              ? "fill-red-500 text-red-500"
-                              : "text-white"
-                          }`}
-                        />
-                      )}
-                    </button>
-                    <button
-                      title={
-                        currentTripData.isCommunityTrip
-                          ? "Remove from Community"
-                          : "Share with Community"
-                      }
-                      onClick={async () => {
-                        if (isCommunityTripLoading) return;
-                        if (!currentTripData.isCommunityTrip) {
-                          handleShareToCommunityClick();
-                        } else {
-                          handleRemoveFromCommunityClick(tripId!);
+                        onClick={async () => {
+                          if (!firebase?.user) {
+                            toast.info("Please login/signup to save the trip.");
+                            return;
+                          }
+                          if (isTripSavingLoading) return;
+                          console.log("Req sent");
+                          if (!currentTripData.isTripSaved) {
+                            handleTripSaveClick();
+                          } else {
+                            handleRemoveTripSaveClick(tripId!);
+                          }
+                        }}
+                        className="p-3 transition-colors rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover"
+                      >
+                        {isTripSavingLoading ? (
+                          <Loader
+                            className={`w-6 h-6 text-white animate-spin`}
+                          />
+                        ) : (
+                          <Heart
+                            className={`w-6 h-6 ${
+                              currentTripData.isTripSaved
+                                ? "fill-red-500 text-red-500"
+                                : "text-white"
+                            }`}
+                          />
+                        )}
+                      </button>
+                      <button
+                        title={
+                          currentTripData.isCommunityTrip
+                            ? "Remove from Community"
+                            : "Share with Community"
                         }
-                      }}
-                      className="p-3 transition-colors rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover"
-                    >
-                      {" "}
-                      {isCommunityTripLoading ? (
-                        <Loader className={`w-6 h-6 text-white animate-spin`} />
-                      ) : (
-                        <Globe
-                          className={`w-6 h-6  ${
-                            currentTripData.isCommunityTrip
-                              ? "text-blue-400"
-                              : "text-white"
-                          }`}
-                        />
-                      )}
-                    </button>
-                  </div>
+                        onClick={async () => {
+                          if (!firebase?.user) {
+                            toast.info(
+                              "Please login/signup inorder to share the trip."
+                            );
+                            return;
+                          }
+                          if (isCommunityTripLoading) return;
+                          if (!currentTripData.isCommunityTrip) {
+                            handleShareToCommunityClick();
+                          } else {
+                            handleRemoveFromCommunityClick(tripId!);
+                          }
+                        }}
+                        className="p-3 transition-colors rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover"
+                      >
+                        {" "}
+                        {isCommunityTripLoading ? (
+                          <Loader
+                            className={`w-6 h-6 text-white animate-spin`}
+                          />
+                        ) : (
+                          <Globe
+                            className={`w-6 h-6  ${
+                              currentTripData.isCommunityTrip
+                                ? "text-blue-400"
+                                : "text-white"
+                            }`}
+                          />
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

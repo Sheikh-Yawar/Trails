@@ -1,15 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Heart,
-  X,
-  ChevronRight,
-  LoaderIcon,
-  Calendar,
-  Users,
-  XCircle,
-  Loader,
-} from "lucide-react";
+import { Heart, X, LoaderIcon, Globe } from "lucide-react";
 import AuthModal from "./AuthModal";
 import { useScrollLock } from "../utils/ScrollLockManager";
 import { useFocusTrap } from "../utils/FocusTrap";
@@ -22,47 +13,72 @@ import {
   ItineraryDayType,
   TripDataType,
 } from "../utils/CustomTypes";
-import { toast } from "react-toastify";
+
 import { GetImageUrl, GetPlaceImageUrlAndRef } from "../utils/GetPlaceImage";
 import { Timestamp } from "firebase/firestore";
+import TripCard from "./TripCard";
 
 const Header: React.FC = () => {
   const firebase = useFirebase();
   const navigate = useNavigate();
   const [isSavedTripsOpen, setIsSavedTripsOpen] = useState(false);
-  const [savedTrips, setSavedTrips] = useState<TripDataType[]>([]);
+  const [isCommunityTripsOpen, setIsCommunityTripsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isTripRemovingLoading, setIsTripRemovingLoading] = useState(false);
-  const [isTripLoading, setIsTripLoading] = useState(false);
+  const [savedTrips, setSavedTrips] = useState<TripDataType[]>([]);
+  const [communityTrips, setCommunityTrips] = useState<TripDataType[]>([]);
+  const [isTripLoadingIndex, setIsTripLoadingIndex] = useState(-1);
+  const [showImage, setShowImage] = useState(true);
   const savedTripsRef = useFocusTrap(isSavedTripsOpen);
+  const communityTripsRef = useFocusTrap(isCommunityTripsOpen);
   const profileRef = useFocusTrap(isProfileOpen);
 
-  useScrollLock(isSavedTripsOpen || isProfileOpen);
+  useScrollLock(isSavedTripsOpen || isProfileOpen || isCommunityTripsOpen);
 
   useEffect(() => {
-    if (firebase && firebase?.savedTrips) {
-      console.log("Trip data is", firebase?.savedTrips);
-      setSavedTrips(firebase.savedTrips);
+    if (!firebase) return;
+    if (firebase.userSavedTrips) {
+      console.log("Saved Trip data is", firebase.userSavedTrips);
+      setSavedTrips(firebase.userSavedTrips);
     }
-  }, [firebase, firebase?.savedTrips]);
+    if (firebase.userCommunityTrips) {
+      console.log("Community Trip data is", firebase.userCommunityTrips);
+      setCommunityTrips(firebase.userCommunityTrips);
+    }
+  }, [firebase, firebase?.userSavedTrips, firebase?.userCommunityTrips]);
 
-  function isOlderThanThreeDays(timestamp: Timestamp): boolean {
-    const threeDaysAgoMillis = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const timestampMillis = timestamp.toMillis();
+  function isOlderThanThreeDays(timestamp: Timestamp | Date | number): boolean {
+    console.log("Timestamp is", timestamp);
+    const threeDaysAgoMillis = Date.now() - 3 * 24 * 60 * 60 * 1000;
+    let timestampMillis: number;
+
+    if (timestamp instanceof Timestamp) {
+      timestampMillis = timestamp.toMillis();
+    } else if (timestamp instanceof Date) {
+      timestampMillis = timestamp.getTime();
+    } else if (typeof timestamp === "number") {
+      timestampMillis = timestamp;
+    } else {
+      return false;
+    }
     return timestampMillis < threeDaysAgoMillis;
   }
 
-  const handleViewTripClick = async (tripId: string, index: number) => {
-    if (savedTrips.length === 0) return;
+  const handleViewTripClick = async (
+    tripId: string,
+    index: number,
+    trip: TripDataType,
+    collection: "favourites" | "community"
+  ) => {
+    if (!trip) return;
 
-    setIsTripLoading(true);
-    let updatedTripData = savedTrips[index];
+    setIsTripLoadingIndex(index);
+    let updatedTripData = trip;
 
     if (isOlderThanThreeDays(updatedTripData.createdAt)) {
       console.log("Older than 30 days, hence fetching new data");
       const updatedHotelOptionsWithImages = (await Promise.all(
-        savedTrips[index].hotelOptions.map(async (hotel: HotelType) => {
+        trip.hotelOptions.map(async (hotel: HotelType) => {
           const { imageUrl, imageRef } = await GetPlaceImageUrlAndRef(
             hotel.hotelName,
             hotel.hotelAddress,
@@ -76,7 +92,7 @@ const Header: React.FC = () => {
       )) as HotelType[];
 
       const updatedItineraryWithImage = (await Promise.all(
-        savedTrips[index].itinerary.map(async (day) => {
+        trip.itinerary.map(async (day) => {
           const updatedFoodPlaces = await Promise.all(
             day.foodPlaces.map(async (foodPlace: FoodPlaceType) => {
               const { imageUrl, imageRef } = await GetPlaceImageUrlAndRef(
@@ -96,7 +112,7 @@ const Header: React.FC = () => {
       )) as ItineraryDayType[];
 
       updatedTripData = {
-        ...savedTrips[index],
+        ...trip,
         createdAt: Timestamp.fromDate(new Date()),
         hotelOptions: updatedHotelOptionsWithImages,
         itinerary: updatedItineraryWithImage,
@@ -109,7 +125,7 @@ const Header: React.FC = () => {
             updatedTripData,
             tripId,
             firebase.user.uid,
-            "favourites"
+            collection
           );
         } catch (error) {
           console.log("Couldn't update the trip");
@@ -117,7 +133,7 @@ const Header: React.FC = () => {
       }
     } else {
       console.log("Rendering the same data ");
-      const updatedHotelOptionsWithImages = savedTrips[index].hotelOptions.map(
+      const updatedHotelOptionsWithImages = trip.hotelOptions.map(
         (hotel: HotelType) => {
           const hotelImage = GetImageUrl(hotel.hotelImageReference);
 
@@ -125,58 +141,33 @@ const Header: React.FC = () => {
         }
       ) as HotelType[];
 
-      const updatedItineraryWithImages = savedTrips[index].itinerary.map(
-        (day) => {
-          const updatedFoodPlaces = day.foodPlaces.map(
-            (foodPlace: FoodPlaceType) => {
-              const foodPlaceImage = GetImageUrl(
-                foodPlace.foodPlaceImageReference
-              );
-              return { ...foodPlace, foodPlaceImage };
-            }
-          );
+      const updatedItineraryWithImages = trip.itinerary.map((day) => {
+        const updatedFoodPlaces = day.foodPlaces.map(
+          (foodPlace: FoodPlaceType) => {
+            const foodPlaceImage = GetImageUrl(
+              foodPlace.foodPlaceImageReference
+            );
+            return { ...foodPlace, foodPlaceImage };
+          }
+        );
 
-          return { ...day, foodPlaces: updatedFoodPlaces };
-        }
-      ) as ItineraryDayType[];
+        return { ...day, foodPlaces: updatedFoodPlaces };
+      }) as ItineraryDayType[];
 
       updatedTripData = {
-        ...savedTrips[index],
+        ...trip,
         hotelOptions: updatedHotelOptionsWithImages,
         itinerary: updatedItineraryWithImages,
       };
     }
 
+    sessionStorage.removeItem(`trails-${tripId}`);
     sessionStorage.setItem(`trails-${tripId}`, JSON.stringify(updatedTripData));
     setIsSavedTripsOpen(false);
-    setIsTripLoading(false);
+    setIsCommunityTripsOpen(false);
+    setIsTripLoadingIndex(-1);
 
     navigate(`/trip/${tripId}`);
-  };
-
-  const handleRemoveTripClick = async (tripId: string) => {
-    if (!tripId) {
-      toast.error("Trip ID not found");
-      return;
-    }
-
-    setIsTripRemovingLoading(true);
-
-    try {
-      const response = await firebase?.removeDataFromFireStore(
-        "trips",
-        tripId,
-        "favourites"
-      );
-      toast.success(response);
-    } catch (error) {
-      if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error("An unknown error occurred.");
-      }
-    }
-    setIsTripRemovingLoading(false);
   };
 
   return (
@@ -224,19 +215,41 @@ const Header: React.FC = () => {
                       </span>
                     </button>
                     <button
+                      title="Shared with community Trips"
+                      onClick={() => setIsCommunityTripsOpen(true)}
+                      className="relative flex items-center justify-center w-12 h-12 transition-colors rounded-full hover:bg-gray-100 group focus-ring"
+                      aria-label={`View ${communityTrips.length} saved trips`}
+                    >
+                      <Globe className="w-8 h-8 text-gray-600 transition-colors group-hover:text-secondary" />
+                      <span className="absolute flex items-center justify-center w-5 h-5 text-xs text-white rounded-full top-[-0px] right-[-0.1rem] bg-secondary">
+                        {communityTrips.length}
+                      </span>
+                    </button>
+                    <button
                       onClick={() => setIsProfileOpen(true)}
                       className="w-10 h-10 overflow-hidden transition-all rounded-full hover:ring-2 hover:ring-secondary hover:ring-offset-2 focus-ring"
                       aria-label="Open profile menu"
                     >
-                      {firebase.user.profileImage ? (
+                      {showImage && firebase.user.profileImage ? (
                         <img
                           src={firebase.user.profileImage}
+                          alt="Profile"
+                          onLoad={() => {
+                            setShowImage(true);
+                          }}
+                          onError={() => {
+                            console.log(
+                              "Error loading profile image",
+                              firebase.userGradient
+                            );
+                            setShowImage(false);
+                          }}
                           className="object-cover w-full h-full"
                         />
                       ) : (
                         <div
                           style={{
-                            background: firebase.userGradient,
+                            background: "#f3f4f6",
                           }}
                           className="w-full h-full"
                         ></div>
@@ -271,9 +284,7 @@ const Header: React.FC = () => {
         <div className="fixed inset-y-0 right-0 w-full max-w-md">
           <div className="flex flex-col h-full bg-white shadow-xl">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-primary">
-                Saved Trips
-              </h2>
+              <h2 className="text-xl font-semibold text-primary">User Trips</h2>
               <button
                 onClick={() => setIsSavedTripsOpen(false)}
                 className="p-2 transition-colors rounded-full hover:bg-gray-100"
@@ -284,76 +295,56 @@ const Header: React.FC = () => {
             <div className="flex-1 p-6 overflow-y-auto">
               <div className="grid gap-4">
                 {savedTrips.map((trip, index) => (
-                  <div
-                    key={trip.tripId}
-                    className="relative overflow-hidden rounded-lg cursor-pointer group"
-                  >
-                    <div className="absolute inset-0 z-10 transition-opacity bg-black/40 group-hover:opacity-60" />
-                    <img
-                      src={trip.tripTitleImage}
-                      alt="Trip title Image"
-                      className="object-cover w-full h-48 transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 z-20 flex flex-col justify-between p-4 ">
-                      <div>
-                        <div className="flex items-center justify-between ">
-                          <h3 className="text-xl font-bold text-white">
-                            {trip.tripName}
-                          </h3>
-                          <div
-                            className="opacity-0 group-hover:opacity-70"
-                            title="Remove from favourites"
-                          >
-                            {isTripRemovingLoading ? (
-                              <Loader
-                                className={`w-5 h-5 text-white animate-spin`}
-                              />
-                            ) : (
-                              <XCircle
-                                onClick={() =>
-                                  handleRemoveTripClick(trip.tripId)
-                                }
-                                className="w-5 h-5 text-white"
-                              />
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-baseline gap-2 text-white">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-3 h-3" />
-                            <span className="text-sm">
-                              {trip.tripDays} Days
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Users className="w-3 h-3" />
-                            <span className="text-sm">
-                              {trip.tripTravellers} Travelers
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex justify-end ">
-                        <button
-                          title="View Trip"
-                          className="p-2 transition-colors rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover"
-                        >
-                          {isTripLoading ? (
-                            <Loader
-                              className={`w-5 h-5 text-white animate-spin`}
-                            />
-                          ) : (
-                            <ChevronRight
-                              onClick={() =>
-                                handleViewTripClick(trip.tripId, index)
-                              }
-                              className="w-5 h-5 text-white"
-                            />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <TripCard
+                    key={`${trip.tripTitleImage}-${index}`}
+                    collection="favourites"
+                    trip={trip}
+                    isTripLoadingIndex={isTripLoadingIndex}
+                    handleViewTripClick={handleViewTripClick}
+                    index={index}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Community Trips Panel */}
+      <div
+        ref={communityTripsRef}
+        role="dialog"
+        aria-label="Community trips"
+        aria-modal="true"
+        className={`fixed inset-0 z-50 ${
+          isCommunityTripsOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        } transition-opacity duration-300`}
+      >
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+        <div className="fixed inset-y-0 right-0 w-full max-w-md">
+          <div className="flex flex-col h-full bg-white shadow-xl">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-primary">
+                Shared with Community Trips
+              </h2>
+              <button
+                onClick={() => setIsCommunityTripsOpen(false)}
+                className="p-2 transition-colors rounded-full hover:bg-gray-100"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="flex-1 p-6 overflow-y-auto">
+              <div className="grid gap-4">
+                {communityTrips.map((trip, index) => (
+                  <TripCard
+                    key={`${trip.tripTitleImage}-${index}`}
+                    collection="community"
+                    trip={trip}
+                    isTripLoadingIndex={isTripLoadingIndex}
+                    handleViewTripClick={handleViewTripClick}
+                    index={index}
+                  />
                 ))}
               </div>
             </div>

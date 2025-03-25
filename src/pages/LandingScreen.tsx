@@ -1,69 +1,161 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Map, Mountain, Calendar, ArrowUpRight } from "lucide-react";
+import {
+  Map,
+  Mountain,
+  Calendar,
+  ArrowUpRight,
+  Users,
+  ChevronRight,
+} from "lucide-react";
 import AuthModal from "../components/AuthModal";
 import CustomButton from "../components/CustomButton";
+import { useFirebase } from "../context/Firebase";
+import {
+  FoodPlaceType,
+  HotelType,
+  ItineraryDayType,
+  TripDataType,
+} from "../utils/CustomTypes";
+import { Timestamp } from "firebase/firestore";
+import { GetImageUrl, GetPlaceImageUrlAndRef } from "../utils/GetPlaceImage";
 
 function LandingScreen() {
+  const firebase = useFirebase();
   const navigate = useNavigate();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [allCommunityTrips, setAllCommunityTrips] = useState<TripDataType[]>(
+    []
+  );
+  const [isTripLoadingIndex, setIsTripLoadingIndex] = useState(-1);
 
-  const trips = [
-    {
-      id: 1,
-      title: "Japanese Cultural Journey",
-      image:
-        "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&q=80&w=1200",
-      location: "Tokyo, Japan",
-      days: 12,
-      size: "lg",
-    },
-    {
-      id: 2,
-      title: "Northern Lights Adventure",
-      image:
-        "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?auto=format&fit=crop&q=80&w=1200",
-      location: "Reykjavik, Iceland",
-      days: 7,
-      size: "sm",
-    },
-    {
-      id: 3,
-      title: "Sahara Desert Expedition",
-      image:
-        "https://images.unsplash.com/photo-1509023464722-18d996393ca8?auto=format&fit=crop&q=80&w=1200",
-      location: "Morocco",
-      days: 10,
-      size: "sm",
-    },
-    {
-      id: 4,
-      title: "Amazon Rainforest Discovery",
-      image:
-        "https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&q=80&w=1200",
-      location: "Brazil",
-      days: 8,
-      size: "lg",
-    },
-    {
-      id: 5,
-      title: "Greek Island Hopping",
-      image:
-        "https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&q=80&w=1200",
-      location: "Greece",
-      days: 14,
-      size: "sm",
-    },
-    {
-      id: 6,
-      title: "Swiss Alps Adventure",
-      image:
-        "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?auto=format&fit=crop&q=80&w=1200",
-      location: "Switzerland",
-      days: 9,
-      size: "sm",
-    },
-  ];
+  function isOlderThanThreeDays(timestamp: Timestamp | Date | number): boolean {
+    console.log("Timestamp is", timestamp);
+    const threeDaysAgoMillis = Date.now() - 3 * 24 * 60 * 60 * 1000;
+    let timestampMillis: number;
+
+    if (timestamp instanceof Timestamp) {
+      timestampMillis = timestamp.toMillis();
+    } else if (timestamp instanceof Date) {
+      timestampMillis = timestamp.getTime();
+    } else if (typeof timestamp === "number") {
+      timestampMillis = timestamp;
+    } else {
+      return false;
+    }
+    return timestampMillis < threeDaysAgoMillis;
+  }
+
+  const handleViewTripClick = async (
+    tripId: string,
+    index: number,
+    trip: TripDataType
+  ) => {
+    if (!trip) return;
+
+    setIsTripLoadingIndex(index);
+    let updatedTripData = trip;
+
+    if (isOlderThanThreeDays(updatedTripData.createdAt)) {
+      console.log("Older than 30 days, hence fetching new data");
+      const updatedHotelOptionsWithImages = (await Promise.all(
+        trip.hotelOptions.map(async (hotel: HotelType) => {
+          const { imageUrl, imageRef } = await GetPlaceImageUrlAndRef(
+            hotel.hotelName,
+            hotel.hotelAddress,
+            hotel.hotelImageReference
+          );
+          if (imageRef) {
+            hotel.hotelImageReference = imageRef;
+          }
+          return { ...hotel, hotelImage: imageUrl };
+        })
+      )) as HotelType[];
+
+      const updatedItineraryWithImage = (await Promise.all(
+        trip.itinerary.map(async (day) => {
+          const updatedFoodPlaces = await Promise.all(
+            day.foodPlaces.map(async (foodPlace: FoodPlaceType) => {
+              const { imageUrl, imageRef } = await GetPlaceImageUrlAndRef(
+                foodPlace.foodPlaceName,
+                foodPlace.foodPlaceAddress,
+                foodPlace.foodPlaceImageReference
+              );
+              if (imageRef) {
+                foodPlace.foodPlaceImageReference = imageRef;
+              }
+              return { ...foodPlace, foodPlaceImageReference: imageUrl };
+            })
+          );
+
+          return { ...day, foodPlaces: updatedFoodPlaces };
+        })
+      )) as ItineraryDayType[];
+
+      updatedTripData = {
+        ...trip,
+        createdAt: Timestamp.fromDate(new Date()),
+        hotelOptions: updatedHotelOptionsWithImages,
+        itinerary: updatedItineraryWithImage,
+      };
+
+      if (firebase && firebase?.user) {
+        try {
+          await firebase?.saveDataToFireStore(
+            "trips",
+            updatedTripData,
+            tripId,
+            firebase.user.uid,
+            "community"
+          );
+        } catch (error) {
+          console.log("Couldn't update the trip");
+        }
+      }
+    } else {
+      console.log("Rendering the same data ");
+      const updatedHotelOptionsWithImages = trip.hotelOptions.map(
+        (hotel: HotelType) => {
+          const hotelImage = GetImageUrl(hotel.hotelImageReference);
+
+          return { ...hotel, hotelImage };
+        }
+      ) as HotelType[];
+
+      const updatedItineraryWithImages = trip.itinerary.map((day) => {
+        const updatedFoodPlaces = day.foodPlaces.map(
+          (foodPlace: FoodPlaceType) => {
+            const foodPlaceImage = GetImageUrl(
+              foodPlace.foodPlaceImageReference
+            );
+            return { ...foodPlace, foodPlaceImage };
+          }
+        );
+
+        return { ...day, foodPlaces: updatedFoodPlaces };
+      }) as ItineraryDayType[];
+
+      updatedTripData = {
+        ...trip,
+        hotelOptions: updatedHotelOptionsWithImages,
+        itinerary: updatedItineraryWithImages,
+      };
+    }
+
+    sessionStorage.removeItem(`trails-${tripId}`);
+    sessionStorage.setItem(`trails-${tripId}`, JSON.stringify(updatedTripData));
+    setIsTripLoadingIndex(-1);
+
+    navigate(`/trip/${tripId}`);
+  };
+
+  useEffect(() => {
+    if (!firebase) return;
+    if (firebase.allCommunityTrips) {
+      console.log("All Community Trips are", firebase.allCommunityTrips);
+      setAllCommunityTrips(firebase.allCommunityTrips);
+    }
+  }, [firebase, firebase?.allCommunityTrips]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -142,33 +234,49 @@ function LandingScreen() {
       <div className="py-24 bg-white">
         <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
           <h2 className="mb-16 text-3xl font-bold text-center text-primary">
-            Popular Adventures
+            Popular Community Adventures
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[200px]">
-            {trips.map((trip) => (
+            {allCommunityTrips.map((trip, index) => (
               <div
-                key={trip.id}
+                key={index}
                 className={`relative overflow-hidden rounded-2xl group ${
-                  trip.size === "lg" ? "sm:col-span-2 sm:row-span-2" : ""
+                  index == 0 || index == 3 ? "sm:col-span-2 sm:row-span-2" : ""
                 }`}
               >
                 <div className="absolute inset-0 z-10 transition-opacity bg-black/40 group-hover:opacity-60"></div>
                 <img
-                  src={trip.image}
-                  alt={trip.title}
+                  src={trip.tripTitleImage}
+                  alt={trip.tripName}
                   className="absolute inset-0 object-cover w-full h-full transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 z-20 flex flex-col justify-between p-6">
                   <div>
-                    <h3 className="text-2xl font-bold text-white">
-                      {trip.title}
+                    <h3 className="text-3xl font-bold text-white">
+                      {trip.tripName}
                     </h3>
-                    <p className="mt-2 text-white/90">{trip.location}</p>
+                    <div className="flex items-baseline gap-2 text-white">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3 h-3" />
+                        <span className="text-sm">{trip.tripDays} Days</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Users className="w-3 h-3" />
+                        <span className="text-sm">
+                          {trip.tripTravellers} Travelers
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-end justify-between">
-                    <span className="text-white/90">{trip.days} days</span>
-                    <button className="p-3 transition-all duration-300 rounded-full opacity-0 bg-white/0 group-hover:opacity-100 group-hover:bg-white/10 hover:bg-white/20">
-                      <ArrowUpRight className="w-6 h-6 text-white" />
+                  <div className="flex items-end justify-end">
+                    <button
+                      onClick={() =>
+                        handleViewTripClick(trip.tripId, index, trip)
+                      }
+                      title="View Trip"
+                      className="p-2 transition-colors rounded-full opacity-0 bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover group-hover:opacity-100"
+                    >
+                      <ArrowUpRight className="w-5 h-5 text-white" />
                     </button>
                   </div>
                 </div>

@@ -56,7 +56,9 @@ interface FirebaseContextType {
   isAuthLoaded: boolean;
   userGradient: string;
   user: trailsUser | null;
-  savedTrips: TripDataType[];
+  userSavedTrips: TripDataType[];
+  userCommunityTrips: TripDataType[];
+  allCommunityTrips: TripDataType[];
   firebaseAnalytics: Analytics;
   firebaseAuth: Auth;
   signupwithGoogle: () => Promise<void>;
@@ -85,6 +87,7 @@ interface FirebaseContextType {
     action: "favourites" | "community"
   ) => Promise<string>;
   getUserFavouriteTrips: (userId: string) => Promise<void>;
+  getUserCommunityTrips: (userId: string) => Promise<void>;
 }
 
 let userGradient = "#f3f4f6";
@@ -127,7 +130,13 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
   children,
 }) => {
   const [user, setUser] = useState<trailsUser | null>(null);
-  const [savedTrips, setSavedTrips] = useState<TripDataType[]>([]);
+  const [userSavedTrips, setUserSavedTrips] = useState<TripDataType[]>([]);
+  const [userCommunityTrips, setUserCommunityTrips] = useState<TripDataType[]>(
+    []
+  );
+  const [allCommunityTrips, setAllCommunityTrips] = useState<TripDataType[]>(
+    []
+  );
   const [isAuthLoaded, setIsAuthLoaded] = useState(false);
 
   const saveDataToFireStore = async (
@@ -145,6 +154,9 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
       });
       if (action === "favourites") {
         await getUserFavouriteTrips(userId);
+      } else {
+        await getUserCommunityTrips(userId);
+        await getAllCommunityTrips();
       }
 
       return action === "favourites"
@@ -180,8 +192,15 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
 
           // Update local state if it's a favourite trip
           if (action === "favourites") {
-            console.log("Updating state", tripId);
-            setSavedTrips((prevTrips: TripDataType[]) =>
+            setUserSavedTrips((prevTrips: TripDataType[]) =>
+              prevTrips.filter((trip) => trip.tripId !== tripId)
+            );
+          } else {
+            setUserCommunityTrips((prevTrips: TripDataType[]) =>
+              prevTrips.filter((trip) => trip.tripId !== tripId)
+            );
+
+            setAllCommunityTrips((prevTrips: TripDataType[]) =>
               prevTrips.filter((trip) => trip.tripId !== tripId)
             );
           }
@@ -191,7 +210,7 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
         } else {
           // Only one is true, delete the document
           await deleteDoc(tripDocRef);
-          setSavedTrips((prevTrips: TripDataType[]) =>
+          setUserSavedTrips((prevTrips: TripDataType[]) =>
             prevTrips.filter((trip) => trip.tripId !== tripId)
           );
           return `Removed from ${
@@ -220,7 +239,33 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
       return doc.data() as TripDataType;
     });
 
-    setSavedTrips(trips);
+    setUserSavedTrips(trips);
+  };
+  const getUserCommunityTrips = async (userId: string): Promise<void> => {
+    const tripsRef = collection(firebaseFirestore, "trips");
+    const q = query(
+      tripsRef,
+      where("userId", "==", userId),
+      where("isCommunityTrip", "==", true)
+    );
+
+    const querySnapshot = await getDocs(q);
+    const trips = querySnapshot.docs.map((doc) => {
+      return doc.data() as TripDataType;
+    });
+
+    setUserCommunityTrips(trips);
+  };
+  const getAllCommunityTrips = async (): Promise<void> => {
+    const tripsRef = collection(firebaseFirestore, "trips");
+    const q = query(tripsRef, where("isCommunityTrip", "==", true));
+
+    const querySnapshot = await getDocs(q);
+    const trips = querySnapshot.docs.map((doc) => {
+      return doc.data() as TripDataType;
+    });
+
+    setAllCommunityTrips(trips);
   };
 
   const signupwithGoogle = async () => {
@@ -397,6 +442,7 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
           };
           setUser(userFromFirestore);
           await getUserFavouriteTrips(user.uid);
+          await getUserCommunityTrips(user.uid);
           userGradient = getGradientColor(user.uid);
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -404,6 +450,7 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
       } else {
         setUser(null);
       }
+      await getAllCommunityTrips();
       setIsAuthLoaded(true);
     });
 
@@ -416,7 +463,9 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
         isAuthLoaded,
         userGradient,
         user,
-        savedTrips,
+        userSavedTrips,
+        userCommunityTrips,
+        allCommunityTrips,
         firebaseAuth,
         firebaseAnalytics,
         signupwithGoogle,
@@ -427,6 +476,7 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
         saveDataToFireStore,
         removeDataFromFireStore,
         getUserFavouriteTrips,
+        getUserCommunityTrips,
       }}
     >
       {children}

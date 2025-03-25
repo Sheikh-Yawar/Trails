@@ -6,7 +6,7 @@ export type updateUserFields = {
 };
 
 export type TripDataType = {
-  createdAt: Timestamp;
+  userId: string;
   tripId: string;
   tripName: string;
   tripTitleImage: string;
@@ -21,6 +21,7 @@ export type TripDataType = {
     placesToVisit: PlaceType[];
     foodPlaces: FoodPlaceType[];
   }[];
+  createdAt: Timestamp;
 };
 
 export type HotelType = {

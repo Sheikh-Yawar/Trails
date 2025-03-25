@@ -117,6 +117,11 @@ const ImageCropper = ({
             <>
               <img
                 src={profileImageRef.current}
+                onError={() => {
+                  profileImageRef.current = null;
+                  setImage(null);
+                  setIsPPRemoved(true);
+                }}
                 alt="Avatar"
                 className="absolute object-cover w-full h-full rounded-full"
               />

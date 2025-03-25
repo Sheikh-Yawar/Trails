@@ -45,14 +45,13 @@ const PlaceCard = ({
       }}
     >
       <img
-        loading="lazy"
         src={imageSrc}
         onError={() => {
-          console.log("Image not found", name);
+          console.log("Image not found ❌", name);
           if (cardType === "accomodation") {
             setImageSrc("/defaultHotelImage.jpg");
           } else if (cardType === "restaurant") {
-            setImageSrc("/public/defaultRestaurantImage.jpg");
+            setImageSrc("/defaultRestaurantImage.jpg");
           }
         }}
         onLoad={() => setIsLoaded(true)}
