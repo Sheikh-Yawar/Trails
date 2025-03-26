@@ -17,5 +17,5 @@ We welcome contributions to improve **Trails**! Whether you have feature suggest
 
 ## **License**
 
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/your-username/Trails/blob/main/LICENSE) file for details.
+This project is licensed under the GPL License. See the [LICENSE](https://github.com/Sheikh-Yawar/Trails?tab=GPL-3.0-1-ov-file#) file for details.
 
