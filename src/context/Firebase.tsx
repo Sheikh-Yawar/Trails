@@ -18,6 +18,8 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  limit,
+  orderBy,
   query,
   setDoc,
   updateDoc,
@@ -258,7 +260,12 @@ export const FirebaseProvider: React.FC<React.PropsWithChildren<{}>> = ({
   };
   const getAllCommunityTrips = async (): Promise<void> => {
     const tripsRef = collection(firebaseFirestore, "trips");
-    const q = query(tripsRef, where("isCommunityTrip", "==", true));
+    const q = query(
+      tripsRef,
+      where("isCommunityTrip", "==", true),
+      orderBy("createdAt", "desc"),
+      limit(6)
+    );
 
     const querySnapshot = await getDocs(q);
     const trips = querySnapshot.docs.map((doc) => {

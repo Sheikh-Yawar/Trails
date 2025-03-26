@@ -17,12 +17,13 @@ import AddActivityForm from "../components/AddActivityForm";
 import { useFirebase } from "../context/Firebase";
 import { toast } from "react-toastify";
 import { Option } from "react-google-places-autocomplete/build/types";
-import { Timestamp } from "firebase/firestore";
 
-const TripItinerary: React.FC = () => {
+const TripItinerary: React.FC = ({}) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const firebase = useFirebase();
   const { tripId } = useParams<{ tripId: string }>();
+  const tripType = location.state?.tripType || "userTrip";
   const [currentTripData, setCurrentTripData] = useState<TripDataType | null>(
     null
   );
@@ -345,7 +346,8 @@ const TripItinerary: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  {firebase?.user?.uid === currentTripData.userId && (
+                  {(tripType === "userTrip" ||
+                    firebase?.user?.uid === currentTripData.userId) && (
                     <div className="flex gap-2">
                       <button
                         title={
@@ -470,7 +472,9 @@ const TripItinerary: React.FC = () => {
                         <h3 className="text-xl font-semibold text-primary">
                           Day {day.dayNumber}
                         </h3>
-                        <p className="text-secondary">{day.dayTheme}</p>
+                        <p className="font-semibold text-secondary">
+                          {day.dayTheme}
+                        </p>
                       </div>
                     </div>
                     <h2 className="pb-2 pl-5 text-xl font-bold text-primary">

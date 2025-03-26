@@ -33,6 +33,7 @@ const CreateTrip = () => {
   const [currency, setCurrency] = useState("INR");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<Option | null>(null);
+  const [userPrompt, setUserPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleTravelersChange = (increment: boolean) => {
@@ -56,105 +57,121 @@ const CreateTrip = () => {
     }
 
     setIsLoading(true);
+    try {
+      const tripId = uuidv4();
 
-    const tripId = uuidv4();
-
-    const FINAL_PROMPT = AI_PROMPT.replace("{userDays}", days.toString())
-      .replace("{userTravellers}", travelers.toString())
-      .replace("{userDestination}", selectedPlace.label)
-      .replace("{userBudget}", selectedBudget!)
-      .replace("{userCurrency}", currency);
-
-    const result = await chatSession.sendMessage(FINAL_PROMPT);
-
-    let tripData = JSON.parse(result?.response?.text());
-
-    const tripTitleImage = await GetUnsplashImage(selectedPlace?.label);
-
-    tripData = {
-      ...tripData,
-      createdAt: Timestamp.fromDate(new Date()),
-      tripTitleImage,
-      tripId,
-      userId: firebase?.user ? firebase.user.uid : "anonynmous",
-      tripName: `${selectedPlace.value.structured_formatting.main_text} Trip`,
-      tripDays: days,
-      tripTravellers: travelers,
-      isTripSaved: false,
-      isCommunityTrip: false,
-    };
-
-    const updatedHotelOptionsWithImageRef = await Promise.all(
-      tripData.hotelOptions.map(async (hotel: HotelType) => {
-        const hotelImageReference = await GetPlaceImageReference(
-          hotel.hotelName,
-          hotel.hotelAddress
-        );
-        return { ...hotel, hotelImageReference };
-      })
-    );
-
-    const updatedItineraryWithImageRef = await Promise.all(
-      tripData.itinerary.map(async (day: ItineraryDayType) => {
-        const updatedFoodPlaces = await Promise.all(
-          day.foodPlaces.map(async (foodPlace: FoodPlaceType) => {
-            const foodPlaceImageReference = await GetPlaceImageReference(
-              foodPlace.foodPlaceName,
-              foodPlace.foodPlaceAddress
-            );
-            return { ...foodPlace, foodPlaceImageReference };
-          })
+      const FINAL_PROMPT = AI_PROMPT.replace("{userDays}", days.toString())
+        .replace("{userTravellers}", travelers.toString())
+        .replace("{userDestination}", selectedPlace.label)
+        .replace("{userBudget}", selectedBudget!)
+        .replace("{userCurrency}", currency)
+        .replace(
+          "{userPrompt}",
+          userPrompt.length > 0
+            ? userPrompt
+            : "No user prompt. Work your magic."
         );
 
-        return { ...day, foodPlaces: updatedFoodPlaces };
-      })
-    );
+      console.log(AI_PROMPT);
 
-    const updatedTrip = {
-      ...tripData,
-      hotelOptions: updatedHotelOptionsWithImageRef,
-      itinerary: updatedItineraryWithImageRef,
-    } as TripDataType;
+      const result = await chatSession.sendMessage(FINAL_PROMPT);
 
-    const updatedHotelOptionsWithImages = updatedTrip.hotelOptions.map(
-      (hotel: HotelType) => {
-        const hotelImage = GetImageUrl(hotel.hotelImageReference);
+      let tripData = JSON.parse(result?.response?.text());
 
-        return { ...hotel, hotelImage };
-      }
-    );
+      const tripTitleImage = await GetUnsplashImage(selectedPlace?.label);
 
-    const updatedItineraryWithImages = updatedTrip.itinerary.map((day) => {
-      const updatedFoodPlaces = day.foodPlaces.map(
-        (foodPlace: FoodPlaceType) => {
-          const foodPlaceImage = GetImageUrl(foodPlace.foodPlaceImageReference);
-          return { ...foodPlace, foodPlaceImage };
+      tripData = {
+        ...tripData,
+        createdAt: Timestamp.fromDate(new Date()),
+        tripTitleImage,
+        tripId,
+        userId: firebase?.user ? firebase.user.uid : "anonynmous",
+        tripName: `${selectedPlace.value.structured_formatting.main_text} Trip`,
+        tripDays: days,
+        tripTravellers: travelers,
+        isTripSaved: false,
+        isCommunityTrip: false,
+      };
+
+      const updatedHotelOptionsWithImageRef = await Promise.all(
+        tripData.hotelOptions.map(async (hotel: HotelType) => {
+          const hotelImageReference = await GetPlaceImageReference(
+            hotel.hotelName,
+            hotel.hotelAddress
+          );
+          return { ...hotel, hotelImageReference };
+        })
+      );
+
+      const updatedItineraryWithImageRef = await Promise.all(
+        tripData.itinerary.map(async (day: ItineraryDayType) => {
+          const updatedFoodPlaces = await Promise.all(
+            day.foodPlaces.map(async (foodPlace: FoodPlaceType) => {
+              const foodPlaceImageReference = await GetPlaceImageReference(
+                foodPlace.foodPlaceName,
+                foodPlace.foodPlaceAddress
+              );
+              return { ...foodPlace, foodPlaceImageReference };
+            })
+          );
+
+          return { ...day, foodPlaces: updatedFoodPlaces };
+        })
+      );
+
+      const updatedTrip = {
+        ...tripData,
+        hotelOptions: updatedHotelOptionsWithImageRef,
+        itinerary: updatedItineraryWithImageRef,
+      } as TripDataType;
+
+      const updatedHotelOptionsWithImages = updatedTrip.hotelOptions.map(
+        (hotel: HotelType) => {
+          const hotelImage = GetImageUrl(hotel.hotelImageReference);
+
+          return { ...hotel, hotelImage };
         }
       );
 
-      return { ...day, foodPlaces: updatedFoodPlaces };
-    });
+      const updatedItineraryWithImages = updatedTrip.itinerary.map((day) => {
+        const updatedFoodPlaces = day.foodPlaces.map(
+          (foodPlace: FoodPlaceType) => {
+            const foodPlaceImage = GetImageUrl(
+              foodPlace.foodPlaceImageReference
+            );
+            return { ...foodPlace, foodPlaceImage };
+          }
+        );
 
-    const updatedTrip2 = {
-      ...tripData,
-      hotelOptions: updatedHotelOptionsWithImages,
-      itinerary: updatedItineraryWithImages,
-    };
-    console.log("Updated Trip Data", updatedTrip2);
+        return { ...day, foodPlaces: updatedFoodPlaces };
+      });
+
+      const updatedTrip2 = {
+        ...tripData,
+        hotelOptions: updatedHotelOptionsWithImages,
+        itinerary: updatedItineraryWithImages,
+      };
+      console.log("Updated Trip Data", updatedTrip2);
+
+      setIsLoading(false);
+
+      sessionStorage.removeItem(`trails-${tripId}`);
+      sessionStorage.setItem(`trails-${tripId}`, JSON.stringify(updatedTrip2));
+
+      navigate(`/trip/${tripId}`);
+    } catch (error) {
+      console.log("Error generating trip", error);
+      toast.error("Something went wrong. Please try again later.");
+    }
 
     setIsLoading(false);
-
-    sessionStorage.removeItem(`trails-${tripId}`);
-    sessionStorage.setItem(`trails-${tripId}`, JSON.stringify(updatedTrip2));
-
-    navigate(`/trip/${tripId}`);
   };
 
   return (
     <div className="min-h-screen bg-white">
       <div className="pt-32 pb-16">
         <div className="max-w-4xl px-4 mx-auto sm:px-6 lg:px-8">
-          <div className="space-y-12">
+          <div className="space-y-8">
             <h1 className="text-3xl font-bold text-primary">
               Plan Your Adventure
             </h1>
@@ -176,6 +193,21 @@ const CreateTrip = () => {
                   }}
                 />
               </div>
+            </div>
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-primary ">
+                Tailor Your Trip (Optional)
+              </label>
+              <textarea
+                value={userPrompt}
+                onChange={(e) => {
+                  if (e.target.value.length <= 150)
+                    setUserPrompt(e.target.value);
+                }}
+                rows={4}
+                className="block p-2.5 w-full text-sm text-gray-900 bg-white rounded-lg border border-gray-300  outline-none appearance-none focus:border-secondary focus:ring-1 focus:ring-secondary"
+                placeholder="Describe your ideal travel experience! Mention themes like niche places, major tourist attractions, mountain or beach sightseeing, preferred locations, activities, dietary preferences, or any special requests."
+              ></textarea>
             </div>
 
             <div className="flex flex-wrap items-baseline gap-y-5 md:gap-y-0 md:gap-x-20 ">

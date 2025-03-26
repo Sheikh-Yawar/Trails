@@ -30,7 +30,7 @@ export type HotelType = {
   hotelName: string;
   hotelImage?: string;
   hotelImageReference?: string;
-  pricePerNight: { fromPrice: number; toPrice: number };
+  pricePerNight: { fromPrice: number; toPrice: number; currencySymbol: string };
   rating: number;
 };
 
@@ -46,7 +46,11 @@ export type FoodPlaceType = {
   description: string;
   rating: number;
   foodPlaceAddress: string;
-  approximatePricePerPerson: { fromPrice: number; toPrice: number };
+  approximatePricePerPerson: {
+    fromPrice: number;
+    toPrice: number;
+    currencySymbol: string;
+  };
   foodPlaceImageReference?: string;
   foodPlaceImage?: string;
 };

@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Users,
   ChevronRight,
+  Loader,
 } from "lucide-react";
 import AuthModal from "../components/AuthModal";
 import CustomButton from "../components/CustomButton";
@@ -27,7 +28,7 @@ function LandingScreen() {
   const [allCommunityTrips, setAllCommunityTrips] = useState<TripDataType[]>(
     []
   );
-  const [isTripLoadingIndex, setIsTripLoadingIndex] = useState(-1);
+  const [tripLoadingIndex, setIsTripLoadingIndex] = useState(-1);
 
   function isOlderThanThreeDays(timestamp: Timestamp | Date | number): boolean {
     console.log("Timestamp is", timestamp);
@@ -146,7 +147,9 @@ function LandingScreen() {
     sessionStorage.setItem(`trails-${tripId}`, JSON.stringify(updatedTripData));
     setIsTripLoadingIndex(-1);
 
-    navigate(`/trip/${tripId}`);
+    navigate(`/trip/${tripId}`, {
+      state: { tripType: "communityTrip" },
+    });
   };
 
   useEffect(() => {
@@ -235,54 +238,71 @@ function LandingScreen() {
         <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
           <h2 className="mb-16 text-3xl font-bold text-center text-primary">
             Popular Community Adventures
+            <p className="pt-1 text-xs font-normal text-center text-gray-400">
+              Only Top 6 Latest trips are shown currently
+            </p>
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[200px]">
-            {allCommunityTrips.map((trip, index) => (
-              <div
-                key={index}
-                className={`relative overflow-hidden rounded-2xl group ${
-                  index == 0 || index == 3 ? "sm:col-span-2 sm:row-span-2" : ""
-                }`}
-              >
-                <div className="absolute inset-0 z-10 transition-opacity bg-black/40 group-hover:opacity-60"></div>
-                <img
-                  src={trip.tripTitleImage}
-                  alt={trip.tripName}
-                  className="absolute inset-0 object-cover w-full h-full transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 z-20 flex flex-col justify-between p-6">
-                  <div>
-                    <h3 className="text-3xl font-bold text-white">
-                      {trip.tripName}
-                    </h3>
-                    <div className="flex items-baseline gap-2 text-white">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3" />
-                        <span className="text-sm">{trip.tripDays} Days</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Users className="w-3 h-3" />
-                        <span className="text-sm">
-                          {trip.tripTravellers} Travelers
-                        </span>
+          {allCommunityTrips.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[200px]">
+              {allCommunityTrips.map((trip, index) => (
+                <div
+                  key={index}
+                  className={`relative overflow-hidden rounded-2xl group ${
+                    index == 0 || index == 3
+                      ? "sm:col-span-2 sm:row-span-2"
+                      : ""
+                  }`}
+                >
+                  <div className="absolute inset-0 z-10 transition-opacity bg-black/40 group-hover:opacity-60"></div>
+                  <img
+                    src={trip.tripTitleImage}
+                    alt={trip.tripName}
+                    className="absolute inset-0 object-cover w-full h-full transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 z-20 flex flex-col justify-between p-6">
+                    <div>
+                      <h3 className="text-3xl font-bold text-white">
+                        {trip.tripName}
+                      </h3>
+                      <div className="flex items-baseline gap-2 text-white">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3 h-3" />
+                          <span className="text-sm">{trip.tripDays} Days</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="w-3 h-3" />
+                          <span className="text-sm">
+                            {trip.tripTravellers} Travelers
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-end justify-end">
-                    <button
-                      onClick={() =>
-                        handleViewTripClick(trip.tripId, index, trip)
-                      }
-                      title="View Trip"
-                      className="p-2 transition-colors rounded-full opacity-0 bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover group-hover:opacity-100"
-                    >
-                      <ArrowUpRight className="w-5 h-5 text-white" />
-                    </button>
+                    <div className="flex items-end justify-end">
+                      <button
+                        onClick={() =>
+                          handleViewTripClick(trip.tripId, index, trip)
+                        }
+                        title="View Trip"
+                        className="p-2 transition-colors rounded-full opacity-0 bg-white/10 backdrop-blur-md hover:bg-white/20 animate-pulse-hover group-hover:opacity-100"
+                      >
+                        {tripLoadingIndex == index ? (
+                          <Loader
+                            className={`w-5 h-5 text-white animate-spin`}
+                          />
+                        ) : (
+                          <ArrowUpRight className="w-5 h-5 text-white" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex justify-center w-full ">
+              <Loader className="w-20 h-20 animate-spin" />
+            </div>
+          )}
         </div>
       </div>
 

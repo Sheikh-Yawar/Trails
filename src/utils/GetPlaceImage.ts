@@ -32,11 +32,11 @@ const GetPlaceImageReference = async (
       if (place.photos && place.photos.length > 0) {
         return place.photos[0].name;
       } else {
-        console.log("No photos available for this place.");
+        console.log("No photos available for this place.", name);
         return null;
       }
     } else {
-      console.log("No places found matching the query.");
+      console.log("No places found matching the query.", name);
       return null;
     }
   } catch (error) {

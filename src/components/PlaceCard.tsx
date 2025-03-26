@@ -10,10 +10,23 @@ type PlaceCardProps = {
   image?: string;
   description: string;
   address: string;
-  pricePerNight?: { fromPrice: number; toPrice: number };
+  pricePerNight?: {
+    fromPrice: number;
+    toPrice: number;
+    currencySymbol: string;
+  };
   rating: number;
   openGoogleMaps: (hotelName: string, hotelAddress: string) => void;
 };
+
+function formatPrice(price: number): string {
+  if (price >= 1000) {
+    const formattedPrice = (price / 1000).toFixed(price >= 10000 ? 0 : 1);
+    return `${formattedPrice}K`;
+  } else {
+    return price.toString();
+  }
+}
 
 const PlaceCard = ({
   cardType,
@@ -37,9 +50,9 @@ const PlaceCard = ({
   const [isLoaded, setIsLoaded] = useState(false);
   return (
     <div
-      className="flex-shrink-0 w-[300px]   aspect-square bg-white rounded-xl border-2 border-transparent hover:border-[#1E90FF] transition-all overflow-clip duration-300 p-6 pb-2 group"
+      className="flex-shrink-0 w-[300px] bg-white rounded-xl border-2 border-transparent  transition-all overflow-clip duration-300 px-5  group"
       style={{
-        height: `${height}px`,
+        height: `${470}px`,
         boxShadow:
           "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
       }}
@@ -76,14 +89,24 @@ const PlaceCard = ({
           <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
         ))}
         {pricePerNight && (
-          <span className="flex items-center gap-1 ml-2 text-sm text-gray-500">
+          <span
+            title={
+              cardType === "accomodation"
+                ? "Average Price Per Night"
+                : "Average Price Per Person"
+            }
+            className="flex items-center gap-1 ml-2 text-sm text-gray-500 cursor-default "
+          >
             <Banknote className="w-5" />
-            {pricePerNight.fromPrice}-{pricePerNight.toPrice} INR/
+            {formatPrice(pricePerNight.fromPrice)}-
+            {formatPrice(pricePerNight.toPrice)} {pricePerNight.currencySymbol}/
             {`${cardType === "accomodation" ? "Night" : "Person"}`}
           </span>
         )}
       </div>
-      <p className="text-gray-600 h-[30%] pb-2 ">{description}</p>
+      <p className="text-gray-600 h-[27%] overflow-y-auto no-scrollbar">
+        {description}
+      </p>
     </div>
   );
 };

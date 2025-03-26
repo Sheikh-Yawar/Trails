@@ -249,7 +249,7 @@ const Header: React.FC = () => {
                       ) : (
                         <div
                           style={{
-                            background: "#f3f4f6",
+                            background: firebase.userGradient,
                           }}
                           className="w-full h-full"
                         ></div>
