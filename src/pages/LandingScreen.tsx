@@ -243,11 +243,12 @@ function LandingScreen() {
             </p>
           </h2>
           {allCommunityTrips.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[200px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[200px] ">
               {allCommunityTrips.map((trip, index) => (
                 <div
+                  onClick={() => handleViewTripClick(trip.tripId, index, trip)}
                   key={index}
-                  className={`relative overflow-hidden rounded-2xl group ${
+                  className={`relative overflow-hidden rounded-2xl group cursor-pointer ${
                     index == 0 || index == 3
                       ? "sm:col-span-2 sm:row-span-2"
                       : ""

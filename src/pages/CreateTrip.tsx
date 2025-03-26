@@ -234,7 +234,7 @@ const CreateTrip = () => {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-x-20 gap-y-5 md:gap-y-0 md:flex-nowrap">
+              <div className="flex flex-wrap gap-x-4 gap-y-5 md:gap-y-0 md:flex-nowrap md:gap-x-20">
                 <div className="space-y-4">
                   <label className="block text-sm font-medium text-primary">
                     How many days?
@@ -290,7 +290,7 @@ const CreateTrip = () => {
               <label className="block text-lg font-medium text-primary">
                 What's your budget?
               </label>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                 <button
                   onClick={() => setSelectedBudget("cheap")}
                   className={`p-6 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-4 group hover:border-secondary ${

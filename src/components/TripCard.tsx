@@ -52,6 +52,7 @@ const TripCard = ({
   };
   return (
     <div
+      onClick={() => handleViewTripClick(trip.tripId, index, trip, collection)}
       key={trip.tripId}
       className="relative overflow-hidden rounded-lg cursor-pointer group"
     >
