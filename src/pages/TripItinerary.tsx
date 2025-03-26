@@ -511,26 +511,26 @@ const TripItinerary: React.FC = ({}) => {
                           (place, placeToVisitindex) => (
                             <div
                               key={`${placeToVisitindex}-${place.placeName}`}
-                              className="p-4 transition-all duration-300 rounded-lg bg-gray-50 hover:bg-gray-100"
+                              className="p-4 transition-all duration-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
                             >
                               <div className="flex items-start justify-between">
-                                <div className="space-y-2">
-                                  <h4
-                                    onClick={() =>
-                                      openGoogleMaps(
-                                        place.placeName,
-                                        place.placeAddress
-                                      )
-                                    }
-                                    className="font-medium cursor-pointer text-primary hover:underline"
-                                  >
+                                <div
+                                  onClick={() =>
+                                    openGoogleMaps(
+                                      place.placeName,
+                                      place.placeAddress
+                                    )
+                                  }
+                                  className="space-y-2"
+                                >
+                                  <h4 className="font-medium cursor-pointer text-primary hover:underline">
                                     {place.placeName}
                                   </h4>
-                                  <p className="text-sm text-gray-600">
+                                  <p className="text-[15px] text-gray-600">
                                     {place.description}
                                   </p>
                                   <div className="flex items-center gap-4 text-sm text-gray-500">
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex flex-wrap items-center gap-1">
                                       <MapPin className="w-4 h-4" />
                                       Best Time:
                                       {place.bestTimeToVisit.map(
@@ -538,7 +538,7 @@ const TripItinerary: React.FC = ({}) => {
                                           return (
                                             <span
                                               key={`time-${index}`}
-                                              className="px-2 text-white bg-gray-600 rounded-full mt-1 text-[5px]"
+                                              className="px-2 text-white bg-gray-600 rounded-full mt-1 text-[10px]"
                                             >
                                               {time}
                                             </span>

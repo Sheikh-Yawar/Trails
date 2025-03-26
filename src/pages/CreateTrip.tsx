@@ -290,7 +290,7 @@ const CreateTrip = () => {
               <label className="block text-lg font-medium text-primary">
                 What's your budget?
               </label>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3 min-[320px]:grid-cols-2">
                 <button
                   onClick={() => setSelectedBudget("cheap")}
                   className={`p-6 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-4 group hover:border-secondary ${

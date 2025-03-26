@@ -50,12 +50,13 @@ const PlaceCard = ({
   const [isLoaded, setIsLoaded] = useState(false);
   return (
     <div
-      className="flex-shrink-0 w-[300px] bg-white rounded-xl border-2 border-transparent  transition-all overflow-clip duration-300 px-5  group"
+      className="flex-shrink-0 w-[300px] bg-white rounded-xl border-2 border-transparent  transition-all overflow-clip duration-300 px-5 cursor-pointer  group"
       style={{
         height: `${470}px`,
         boxShadow:
           "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
       }}
+      onClick={() => openGoogleMaps(name, address)}
     >
       <img
         src={imageSrc}
