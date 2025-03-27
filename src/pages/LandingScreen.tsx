@@ -176,14 +176,30 @@ function LandingScreen() {
               adventures tailored to your preferences.
             </p>
             <div className="flex justify-center gap-4 animate-fade-in-delay-2">
-              <CustomButton
-                labelText="Plan Your Adventure"
-                iconPosition="suffix"
-                iconName="ArrowRight"
-                onClickHandler={() => navigate("/create-trip")}
-                buttonClassName="px-7 py-3 shadow-lg group hover:shadow-xl"
-                iconClassName="transition-transform group-hover:translate-x-1"
-              />
+              <div>
+                <CustomButton
+                  labelText="Plan Your Adventure"
+                  iconPosition="suffix"
+                  iconName="ArrowRight"
+                  onClickHandler={() => navigate("/create-trip")}
+                  buttonClassName="px-7 py-3 shadow-lg group hover:shadow-xl"
+                  iconClassName="transition-transform group-hover:translate-x-1"
+                />
+                <p className="mt-1 text-xs font-normal text-center text-gray-400 ">
+                  Developed by{" "}
+                  <span
+                    onClick={() => {
+                      window.open(
+                        "https://www.linkedin.com/in/sheikh-yawar-56022a193/",
+                        "_blank"
+                      );
+                    }}
+                    className="transition-colors duration-500 border-b-[3px] border-transparent cursor-pointer hover:border-secondary "
+                  >
+                    Sheikh Yawar
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
         </div>
