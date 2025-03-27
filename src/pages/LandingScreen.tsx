@@ -8,6 +8,7 @@ import {
   Users,
   ChevronRight,
   Loader,
+  ArrowDown,
 } from "lucide-react";
 import AuthModal from "../components/AuthModal";
 import CustomButton from "../components/CustomButton";
@@ -206,7 +207,7 @@ function LandingScreen() {
       </div>
 
       {/* Features Section */}
-      <div className="py-24 bg-light">
+      <div className="py-24 bg-gray-200">
         <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
             <div className="space-y-4 text-center transition-transform duration-300 group hover:-translate-y-2">

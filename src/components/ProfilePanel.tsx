@@ -124,7 +124,7 @@ const ProfilePanel = ({
             <div className="p-6 space-y-6">
               {/* Profile Picture */}
               <div className="flex flex-col items-center mt-4 space-y-4">
-                {firebase?.user && firebase.user.profileImage && (
+                {firebase?.user && (
                   <ImageCropper
                     profileImageRef={profileImageRef}
                     canChooseNewFile={isEditing}
